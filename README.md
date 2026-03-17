@@ -46,36 +46,39 @@ The architecture follows modern backend best practices with clearly separated la
 # Project Architecture
 
 ```
-src/
+AI-POWERED_LINKEDIN_POST_AUTOMATION/
+
+├── extension/
+│   ├── icons/
+│   ├── utils/
+│   ├── background.js
+│   ├── content.js
+│   ├── manifest.json
+│   ├── popup.html
+│   ├── popup.css
+│   └── popup.js
 │
-├── app.js
-├── server.js
+├── server/
+│   ├── node_modules/
+│   ├── src/
+│   │   ├── config/
+│   │   ├── controllers/
+│   │   ├── db/
+│   │   ├── middlewares/
+│   │   ├── routes/
+│   │   ├── services/
+│   │   ├── utils/
+│   │   ├── validators/
+│   │   ├── app.js
+│   │   └── server.js
+│   │
+│   ├── .env
+│   ├── .prettierignore
+│   ├── .prettierrc
+│   └── node_modules/
 │
-├── config/
-│   ├── database.js
-│   └── env.js
-│
-├── controllers/
-│   └── postController.js
-│
-├── services/
-│   ├── aiService.js
-│   ├── promptService.js
-│   └── postRepository.js
-│
-├── validators/
-│
-├── routes/
-│
-├── db/
-│   ├── schema.sql
-│   ├── migrate.js
-│   └── test-connection.js
-│
-├── utils/
-│
-└── extension/
-    └── icons/
+├── contract_doc.md
+├── README.md
 ```
 
 ---
@@ -288,6 +291,64 @@ npm run format     → Format code using Prettier
 
 ---
 
+## Chrome Extension Setup
+
+To run the popup UI in Chrome:
+
+### Step 1: Open Extensions Page
+
+Go to:
+
+```
+chrome://extensions/
+```
+
+---
+
+### Step 2: Enable Developer Mode
+
+* Toggle **Developer mode** (top right)
+
+---
+
+### Step 3: Load Extension
+
+* Click **Load unpacked**
+* Select the folder:
+
+```
+/extension
+```
+
+---
+
+### Step 4: Pin the Extension
+
+* Click the puzzle icon in Chrome toolbar
+* Pin **AI LinkedIn Post Generator**
+
+---
+
+### Step 5: Test the Popup
+
+* Click the extension icon
+* You should see:
+
+  * Auth screen (signup/login)
+  * Then generator UI after login
+
+---
+
+### ⚠️ Important Notes
+
+* Any changes to extension files require clicking **Reload** in `chrome://extensions/`
+* Make sure:
+
+  * `manifest.json` is valid
+  * No console errors in popup
+
+---
+
 # Security Practices
 
 This project includes:
@@ -346,3 +407,4 @@ Planned improvements include:
 # Maintainers
 
 Project maintained by the development team building the **AI‑Powered LinkedIn Post Automation Tool**.
+
