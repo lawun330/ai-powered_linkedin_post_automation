@@ -46,36 +46,39 @@ The architecture follows modern backend best practices with clearly separated la
 # Project Architecture
 
 ```
-src/
+AI-POWERED_LINKEDIN_POST_AUTOMATION/
+
+├── extension/
+│   ├── icons/
+│   ├── utils/
+│   ├── background.js
+│   ├── content.js
+│   ├── manifest.json
+│   ├── popup.html
+│   ├── popup.css
+│   └── popup.js
 │
-├── app.js
-├── server.js
+├── server/
+│   ├── node_modules/
+│   ├── src/
+│   │   ├── config/
+│   │   ├── controllers/
+│   │   ├── db/
+│   │   ├── middlewares/
+│   │   ├── routes/
+│   │   ├── services/
+│   │   ├── utils/
+│   │   ├── validators/
+│   │   ├── app.js
+│   │   └── server.js
+│   │
+│   ├── .env
+│   ├── .prettierignore
+│   ├── .prettierrc
+│   └── node_modules/
 │
-├── config/
-│   ├── database.js
-│   └── env.js
-│
-├── controllers/
-│   └── postController.js
-│
-├── services/
-│   ├── aiService.js
-│   ├── promptService.js
-│   └── postRepository.js
-│
-├── validators/
-│
-├── routes/
-│
-├── db/
-│   ├── schema.sql
-│   ├── migrate.js
-│   └── test-connection.js
-│
-├── utils/
-│
-└── extension/
-    └── icons/
+├── contract_doc.md
+├── README.md
 ```
 
 ---
