@@ -131,6 +131,53 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     return true;
   }
 
+  if (message.type === "SAVE_DRAFT") {
+    chrome.storage.local.get(["authToken"], (result) => {
+      const token = result.authToken;
+
+      if (!token) {
+        sendResponse({
+          success: false,
+          message: "Unauthorized. Please login first.",
+        });
+        return;
+      }
+
+      fetch("http://localhost:5000/api/drafts", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(message.payload),
+      })
+        .then(async (res) => {
+          const data = await res.json().catch(() => null);
+
+          if (!res.ok) {
+            sendResponse({
+              success: false,
+              message: data?.message || "Failed to save draft.",
+              errors: data?.errors || null,
+            });
+            return;
+          }
+
+          sendResponse(data);
+        })
+        .catch((error) => {
+          console.error("Save draft error:", error);
+
+          sendResponse({
+            success: false,
+            message: "Could not connect to the backend server.",
+          });
+        });
+    });
+
+    return true;
+  }
+
   if (message.type === "LOGOUT") {
     chrome.storage.local.remove(["authToken", "currentUser"], () => {
       sendResponse({

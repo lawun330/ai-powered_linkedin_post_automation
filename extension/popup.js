@@ -15,6 +15,8 @@ const italicBtn = document.getElementById("italicBtn");
 const bulletBtn = document.getElementById("bulletBtn");
 const loading = document.getElementById("loading");
 const messageBox = document.getElementById("message");
+const saveDraftBtn = document.getElementById("saveDraftBtn");
+const loadingText = document.getElementById("loadingText");
 
 // =========================
 // Auth view elements
@@ -58,13 +60,21 @@ function showMessage(message) {
   messageBox.textContent = message;
 }
 
-function setLoading(isLoading) {
+function setLoading(isLoading, text = "Generating post...") {
   if (loading) {
     loading.classList.toggle("hidden", !isLoading);
   }
 
+  if (loadingText) {
+    loadingText.textContent = text;
+  }
+
   if (generateBtn) {
     generateBtn.disabled = isLoading;
+  }
+
+  if (saveDraftBtn) {
+    saveDraftBtn.disabled = isLoading;
   }
 
   if (signupBtn) {
@@ -261,7 +271,7 @@ if (signupBtn) {
 }
 
 // =========================
-// Login flow - UI only for now
+// Login flow
 // After login, move to generator
 // =========================
 if (loginBtn) {
@@ -380,6 +390,70 @@ if (generateBtn) {
         }
 
         showMessage("Post generated successfully.");
+      }
+    );
+  });
+}
+
+if (saveDraftBtn) {
+  saveDraftBtn.addEventListener("click", () => {
+    const draftContent = output?.value.trim();
+    const originalPrompt = promptInput?.value.trim();
+    const tone = toneSelect?.value;
+    const goal = goalSelect?.value;
+    const cta = ctaOutput?.value.trim();
+
+    const hashtags = hashtagsOutput?.value
+      ? hashtagsOutput.value
+          .split(" ")
+          .map((tag) => tag.trim())
+          .filter(Boolean)
+      : [];
+
+    if (!draftContent) {
+      showMessage("Generate a post before saving draft.");
+      return;
+    }
+
+    if (!originalPrompt) {
+      showMessage("Original prompt is required.");
+      return;
+    }
+
+    const title =
+      originalPrompt.length > 60
+        ? `${originalPrompt.slice(0, 60)}...`
+        : originalPrompt;
+
+    setLoading(true, "Saving draft...");
+    showMessage("");
+
+    chrome.runtime.sendMessage(
+      {
+        type: "SAVE_DRAFT",
+        payload: {
+          title,
+          original_prompt: originalPrompt,
+          tone,
+          goal,
+          draft_content: draftContent,
+          hashtags,
+          cta,
+        },
+      },
+      (response) => {
+        setLoading(false, "Generating post...");
+
+        if (chrome.runtime.lastError) {
+          showMessage("Failed to communicate with extension background script.");
+          return;
+        }
+
+        if (handleApiError(response, "Failed to save draft.")) {
+          return;
+        }
+
+        showMessage("Draft saved.");
       }
     );
   });
