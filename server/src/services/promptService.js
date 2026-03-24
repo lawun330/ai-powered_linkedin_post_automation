@@ -30,6 +30,7 @@ Instructions:
 - Avoid being generic — make it specific and valuable
 - No emojis
 - The post body must NOT include hashtags
+- Clearly separate sentences into short paragraphs and include one line spaces between paragraphs
 - Provide EXACTLY 3 relevant hashtags in the JSON
 - Provide a strong CTA (Call to Action)
 - Return valid JSON ONLY
