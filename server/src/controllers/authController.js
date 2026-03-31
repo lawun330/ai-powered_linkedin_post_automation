@@ -81,15 +81,10 @@ async function signup(req, res, next) {
       metadata: { provider: "local" },
     });
 
-    const token = signToken(user);
-
     return res.status(201).json({
       success: true,
-      data: {
-        token,
-        refreshToken, // Send refresh token to the client (usually stored in an HttpOnly cookie)
-        user: { id: user.id, full_name: user.full_name, email: user.email },
-      },
+      redirect: "/login",
+      message: "Signup successful, Please login..."
     });
   } catch (err) {
     next(err);
