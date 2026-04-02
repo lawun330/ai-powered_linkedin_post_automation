@@ -17,7 +17,7 @@ const {
 // Helper to generate JWT access token
 function signToken(user) {
   return jwt.sign(
-    { id: user.id, email: user.email, full_name: user.full_name },
+    { id: user.id, full_name: user.full_name, email: user.email },
     env.jwtSecret,
     { expiresIn: "15m" } // Access tokens should be short-lived since you now have sessions/refresh tokens
   );
@@ -81,10 +81,16 @@ async function signup(req, res, next) {
       metadata: { provider: "local" },
     });
 
+    const token = signToken(user);
+
     return res.status(201).json({
       success: true,
-      redirect: "/login",
-      message: "Signup successful, Please login..."
+      message: "Account created. Please log in.",
+      data: {
+        token,
+        refreshToken,
+        user: { id: user.id, full_name: user.full_name, email: user.email },
+      },
     });
   } catch (err) {
     next(err);
