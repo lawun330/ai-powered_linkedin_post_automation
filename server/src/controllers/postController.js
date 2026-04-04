@@ -52,7 +52,7 @@ async function generatePost(req, res, next) {
       await logPostGeneratedEvent({
         userId,
         modelName: result.modelName,
-        provider: result.provider,
+        modelProvider: result.provider,
         generatedPostId: savedPost.id,
         generationTimeMs: result.generationTimeMs,
       });
