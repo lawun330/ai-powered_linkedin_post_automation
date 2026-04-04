@@ -8,7 +8,8 @@
     "migrate": "node src/db/migrate.js",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
-    "format": "prettier . --write"
+    "format": "prettier . --write",
+    "sync-extension-google-client": "node scripts/sync-extension-google-client.js"
   },
   "dependencies": {
     "bcrypt": "^6.0.0",

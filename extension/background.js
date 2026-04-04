@@ -1,4 +1,6 @@
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+  
+  // signup with email and password
   if (message.type === "SIGNUP") {
     fetch("http://localhost:5000/api/auth/signup", {
       method: "POST",
@@ -43,6 +45,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     return true;
   }
 
+  // login with email and password
   if (message.type === "LOGIN") {
     fetch("http://localhost:5000/api/auth/login", {
       method: "POST",
@@ -90,6 +93,70 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
           message: "Could not connect to the backend server.",
         });
       });
+
+    return true;
+  }
+
+  // signup/login with Google
+  if (message.type === "GOOGLE_AUTH") {
+    chrome.identity.getAuthToken({ interactive: true }, (accessToken) => {
+      if (chrome.runtime.lastError || !accessToken) {
+        sendResponse({
+          success: false,
+          message: chrome.runtime.lastError?.message || "Google sign-in was cancelled.",
+        });
+        return;
+      }
+
+      fetch("http://localhost:5000/api/auth/google", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ access_token: accessToken }),
+      })
+        .then(async (res) => {
+          const data = await res.json().catch(() => null);
+
+          chrome.identity.removeCachedAuthToken({ token: accessToken }, () => {});
+
+          if (!res.ok) {
+            sendResponse({
+              success: false,
+              message: data?.message || "Google sign-in failed.",
+              errors: data?.errors || null,
+            });
+            return;
+          }
+
+          const token = data?.data?.token || data?.token || null;
+          const user = data?.data?.user || data?.user || null;
+
+          if (!token) {
+            sendResponse({
+              success: false,
+              message: "Google sign-in succeeded but no token was returned.",
+            });
+            return;
+          }
+
+          chrome.storage.local.set({ authToken: token, currentUser: user }, () => {
+            sendResponse({
+              success: true,
+              message: "Signed in with Google.",
+              data,
+            });
+          });
+        })
+        .catch((error) => {
+          console.error("Google auth error:", error);
+          chrome.identity.removeCachedAuthToken({ token: accessToken }, () => {});
+          sendResponse({
+            success: false,
+            message: "Could not connect to the backend server.",
+          });
+        });
+    });
 
     return true;
   }
@@ -189,6 +256,12 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   }
 
   if (message.type === "LOGOUT") {
+    chrome.identity.getAuthToken({ interactive: false }, (token) => {
+      if (token) {
+        chrome.identity.removeCachedAuthToken({ token }, () => {});
+      }
+    });
+
     chrome.storage.local.remove(["authToken", "currentUser"], () => {
       sendResponse({
         success: true,

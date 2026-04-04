@@ -118,6 +118,10 @@ function setLoading(isLoading, text = "Generating post...") {
   if (loginBtn) {
     loginBtn.disabled = isLoading;
   }
+
+  document.querySelectorAll(".js-google-auth").forEach((btn) => {
+    btn.disabled = isLoading;
+  });
 }
 
 // =========================
@@ -567,6 +571,29 @@ if (loginBtn) {
   });
 }
 
+document.querySelectorAll(".js-google-auth").forEach((btn) => {
+  btn.addEventListener("click", () => {
+    setLoading(true, "Signing in with Google...");
+    showMessage("");
+
+    chrome.runtime.sendMessage({ type: "GOOGLE_AUTH" }, (response) => {
+      setLoading(false, "Generating post...");
+
+      if (chrome.runtime.lastError) {
+        showMessage("Failed to communicate with extension background script.");
+        return;
+      }
+
+      if (handleApiError(response, "Google sign-in failed.")) {
+        return;
+      }
+
+      showMessage(response?.message || "Signed in with Google.");
+      showView(generatorView);
+      loadFromLocal();
+    });
+  });
+});
 
 // =========================
 // Generator actions

@@ -2,6 +2,10 @@ const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
 const crypto = require("crypto"); // Added for generating secure refresh tokens
 const env = require("../config/env");
+const {
+  readGoogleAuthConfig,
+  verifyGoogleAccessTokenAudience,
+} = require("../config/googleAuthConfig");
 const { validateSignup, validateLogin } = require("../validators/auth.validator");
 
 // Updated repository imports based on the new schema needs
@@ -28,6 +32,9 @@ function generateRefreshToken() {
   return crypto.randomBytes(40).toString("hex");
 }
 
+// ======
+// Signup
+// ======
 async function signup(req, res, next) {
   try {
     const { full_name, email, password } = req.body;
@@ -97,6 +104,9 @@ async function signup(req, res, next) {
   }
 }
 
+// =====
+// Login
+// =====
 async function login(req, res, next) {
   try {
     const { email, password } = req.body;
@@ -112,6 +122,13 @@ async function login(req, res, next) {
     const user = await findUserByEmail(normalizedEmail);
     if (!user) {
       return res.status(401).json({ success: false, message: "Invalid email or password" });
+    }
+
+    if (user.auth_provider === "google") {
+      return res.status(409).json({
+        success: false,
+        message: "This account uses Google sign-in.",
+      });
     }
 
     const passwordOk = await bcrypt.compare(password, user.password_hash);
@@ -160,6 +177,121 @@ async function login(req, res, next) {
   }
 }
 
+// Helper to fetch User Profile from Google API
+async function fetchGoogleUserProfile(accessToken) {
+  const res = await fetch("https://www.googleapis.com/oauth2/v3/userinfo", {
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+  if (!res.ok) {
+    return null;
+  }
+  return res.json();
+}
+
+// ======================
+// Google: Signup / Login
+// ======================
+/* FLOW:
+ * 1) extension/manifest.json stores the "client id" (from Google Cloud OAuth client).
+ * 2) user signs in with Google; Chrome uses that "client id" (e.g. chrome.identity) to obtain tokens from Google.
+ * 3) Google returns an "access_token" to the extension.
+ * 4) the extension POSTs that "access_token" to the backend API.
+ * 5) the backend requests Google's tokeninfo for that "access_token".
+ * 6) Google responds with JSON that includes `aud`, the OAuth client id that issued the token.
+ * 7) the backend checks that `aud` equals the "client id" from google_auth.json.
+ * 8) if they match, the Google token is valid, so, the backend completes sign-in and returns payload to the client.
+ */
+async function googleSignupLogin(req, res, next) {
+  try {
+    const googleConfig = readGoogleAuthConfig();
+    if (!googleConfig) {
+      return res.status(503).json({
+        success: false,
+        message: "Google sign-in is not configured. Add server/google_auth.json with your OAuth client.",
+      });
+    }
+
+    const accessToken = req.body?.access_token;
+    if (!accessToken || typeof accessToken !== "string") {
+      return res.status(400).json({ success: false, message: "access_token is required" });
+    }
+
+    const audience = await verifyGoogleAccessTokenAudience(accessToken, googleConfig.clientId);
+    if (!audience.ok) {
+      return res.status(401).json({ success: false, message: audience.message });
+    }
+
+    const profile = await fetchGoogleUserProfile(accessToken);
+    if (!profile?.email) {
+      return res.status(401).json({ success: false, message: "Invalid or expired Google token" });
+    }
+
+    const normalizedEmail = String(profile.email).trim().toLowerCase();
+    const fullName = (profile.name && String(profile.name).trim()) || normalizedEmail.split("@")[0];
+    const picture = profile.picture ? String(profile.picture) : null;
+
+    let user = await findUserByEmail(normalizedEmail);
+    let isNewUser = false;
+
+    if (user) {
+      if (user.auth_provider !== "google") {
+        return res.status(409).json({
+          success: false,
+          message:
+            "This email is already registered with a password. Sign in with email and password.",
+        });
+      }
+    } else {
+      isNewUser = true;
+      const randomSecret = crypto.randomBytes(32).toString("hex");
+      const passwordHash = await bcrypt.hash(randomSecret, 12);
+      user = await createUser({
+        fullName,
+        email: normalizedEmail,
+        passwordHash,
+        authProvider: "google",
+        profileImageUrl: picture,
+      });
+      await initUserPreferences(user.id);
+    }
+
+    const refreshToken = generateRefreshToken();
+    const refreshTokenHash = await bcrypt.hash(refreshToken, 10);
+    const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+    const ipAddress = req.ip || req.connection.remoteAddress;
+    const userAgent = req.headers["user-agent"] || "unknown";
+
+    const session = await createSession({
+      userId: user.id,
+      refreshTokenHash,
+      ipAddress,
+      userAgent,
+      expiresAt,
+    });
+
+    await createUsageEvent({
+      userId: user.id,
+      sessionId: session.id,
+      eventType: "auth",
+      eventName: isNewUser ? "signup" : "login",
+      metadata: { provider: "google" },
+    });
+
+    const token = signToken(user);
+
+    return res.status(200).json({
+      success: true,
+      data: {
+        token,
+        refreshToken,
+        user: { id: user.id, full_name: user.full_name, email: user.email },
+      },
+    });
+  } catch (err) {
+    next(err);
+  }
+}
+
 async function me(req, res, next) {
   try {
     const user = await findUserById(req.user.id);
@@ -176,5 +308,6 @@ async function me(req, res, next) {
 module.exports = {
   signup,
   login,
+  googleSignupLogin,
   me,
 };
