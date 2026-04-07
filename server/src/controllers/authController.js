@@ -80,17 +80,15 @@ async function signup(req, res, next) {
     });
 
     // 4. Log usage event via centralized event service
-    try{
+    try {
       await logSignupEvent({
         userId: user.id,
         sessionId: session.id,
-        metadata: {
-          provider: "local",
-        }
+        provider: "local",
       });
     } catch (err) {
-      next(err);
-    }    
+      return next(err);
+    }
 
     const token = signToken(user);
 
@@ -165,7 +163,7 @@ async function login(req, res, next) {
         provider: "local",
       });
     } catch (err) {
-      next(err);
+      return next(err);
     }
 
     const token = signToken(user);
@@ -275,13 +273,11 @@ async function googleSignupLogin(req, res, next) {
       expiresAt,
     });
 
-    await createUsageEvent({
-      userId: user.id,
-      sessionId: session.id,
-      eventType: "auth",
-      eventName: isNewUser ? "signup" : "login",
-      metadata: { provider: "google" },
-    });
+    if (isNewUser) {
+      await logSignupEvent({ userId: user.id, sessionId: session.id, provider: "google" });
+    } else {
+      await logLoginEvent({ userId: user.id, sessionId: session.id, provider: "google" });
+    }
 
     const token = signToken(user);
 

@@ -40,7 +40,7 @@ async function createDraft(req, res, next) {
         draftId: draft.id,
       });
     } catch (err) {
-      next(err);
+      return next(err);
     }
 
     return res.status(201).json({
