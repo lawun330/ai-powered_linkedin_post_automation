@@ -122,6 +122,37 @@
       </p>
     </div>
 
+    <!-- OTP Verification View -->
+    <div id="otpView" class="view hidden">
+      <div class="top-row">
+        <button id="backFromOtp" class="text-btn">← Back</button>
+      </div>
+
+      <h2>Verify Email</h2>
+
+      <p class="subtitle">
+        Enter the 6-digit code sent to
+        <strong id="otpEmailHint">your email</strong>.
+      </p>
+
+      <div id="otpInputs" class="otp-input-row" aria-label="One-time password input">
+        <input type="text" class="otp-digit" inputmode="numeric" maxlength="1" autocomplete="one-time-code" />
+        <input type="text" class="otp-digit" inputmode="numeric" maxlength="1" />
+        <input type="text" class="otp-digit" inputmode="numeric" maxlength="1" />
+        <input type="text" class="otp-digit" inputmode="numeric" maxlength="1" />
+        <input type="text" class="otp-digit" inputmode="numeric" maxlength="1" />
+        <input type="text" class="otp-digit" inputmode="numeric" maxlength="1" />
+      </div>
+
+      <button id="verifyOtpBtn">Verify OTP</button>
+      <button id="resendOtpBtn" class="secondary-btn">Resend OTP</button>
+
+      <p class="switch-text">
+        Wrong email?
+        <span id="goBackToSignupFromOtp">Go back</span>
+      </p>
+    </div>
+
     <!-- Generator View -->
     <div id="generatorView" class="view hidden">
       <h2>LinkedIn AI Post Generator</h2>
