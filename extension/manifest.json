@@ -1,5 +1,6 @@
 {
   "manifest_version": 3,
+  "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA5387UJaw/0w0lzTr1E14z3XZ+bfKKXj63UJ2woHTYX8ZPrmwsDN9f8Aqov+dq8iNoKmwdQFz/ekucaLk8MJp3kEJUYahkWXEBLeOIj3Ul3HKl8fNB45YRyiC8aHqMtUEmT+C/7hffEC/e/j45cjWlkOAbigVCloqDf7dms6Kc7PdQcSiR/WsCGAQnvK70Or9a8631S2UwDd+RdJG6N2Gt9cA6WgxDLBkycP9J/a34ntLqdFdk39OCGqVSZm4+bR6QgoOSHH4bP4+JWT5Djc39Uwn6Scn0c002qldyrAqEwuIQPiIlgk06s8UzLhnK37/fx5mdXtsSaJWKo+XMK2qoQIDAQAB",
   "name": "Linkedin AI Post Generator",
   "version": "1.0.0",
   "description": "A Chrome extension that integrates LLM to generate and insert AI-powered LinkedIn posts directly from Chrome.",

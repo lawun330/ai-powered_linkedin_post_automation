@@ -4,3 +4,4 @@ google_auth.json
 logs
 npm-debug.log
 .DS_Store
+extension_private.pem
