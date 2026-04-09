@@ -110,6 +110,7 @@ function sendInsertMessageToTab(tabId, text, sendResponse) {
       }
     );
   }, 1000);
+}
 
 // -----------------------------
 // Google OAuth PKCE helpers 
