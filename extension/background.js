@@ -1,3 +1,6 @@
+// ----------------------
+// Authentication helpers
+// ----------------------
 function sendAuthenticatedRequest({ url, method = "GET", token, body = null, sendResponse, fallbackMessage }) {
   fetch(url, {
     method,
@@ -31,6 +34,9 @@ function sendAuthenticatedRequest({ url, method = "GET", token, body = null, sen
     });
 }
 
+// ---------------------
+// Linkedin post helpers
+// ---------------------
 function isLinkedInUrl(url) {
   return typeof url === "string" && url.includes("linkedin.com");
 }
@@ -106,7 +112,62 @@ function sendInsertMessageToTab(tabId, text, sendResponse) {
   }, 1000);
 }
 
+// -----------------------------
+// Google OAuth PKCE helpers 
+// -----------------------------
+// convert byte array to base64 url encoded string
+function base64UrlEncode(buffer) {
+  const bytes = new Uint8Array(buffer);
+  let binary = "";
+  for (let i = 0; i < bytes.byteLength; i++) binary += String.fromCharCode(bytes[i]);
+  return btoa(binary).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+}
+
+// generate a random verifier bytes for PKCE code verifier and OAuth state
+function randomVerifierBytes(length) {
+  const buf = new Uint8Array(length);
+  crypto.getRandomValues(buf);
+  return base64UrlEncode(buf);
+}
+
+// generate a SHA-256 hash of the code verifier and return it as a base64 url encoded string
+async function sha256Base64Url(asciiString) {
+  const data = new TextEncoder().encode(asciiString);
+  const hash = await crypto.subtle.digest("SHA-256", data);
+  return base64UrlEncode(hash);
+}
+
+// build the Google PKCE auth URL
+async function buildGooglePkceAuthUrl() {
+  const manifest = chrome.runtime.getManifest();
+  const clientId = manifest.oauth2.client_id;
+  const redirectUri = chrome.identity.getRedirectURL();
+  const codeVerifier = randomVerifierBytes(32);
+  const codeChallenge = await sha256Base64Url(codeVerifier);
+  const state = randomVerifierBytes(16);
+  const params = new URLSearchParams({
+    client_id: clientId,
+    response_type: "code",
+    redirect_uri: redirectUri,
+    scope: "openid email profile",
+    code_challenge: codeChallenge,
+    code_challenge_method: "S256",
+    state,
+  });
+  return {
+    authUrl: `https://accounts.google.com/o/oauth2/v2/auth?${params.toString()}`,
+    codeVerifier,
+    state,
+    redirectUri,
+  };
+}
+
+// -----------------
+// Background script
+// -----------------
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+  
+  // signup with email and password
   if (message.type === "SIGNUP") {
     fetch("http://localhost:5000/api/auth/signup", {
       method: "POST",
@@ -151,6 +212,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     return true;
   }
 
+  // login with email and password
   if (message.type === "LOGIN") {
     fetch("http://localhost:5000/api/auth/login", {
       method: "POST",
@@ -198,6 +260,126 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
           message: "Could not connect to the backend server.",
         });
       });
+
+    return true;
+  }
+
+  // signup/login with Google
+  if (message.type === "GOOGLE_AUTH") {
+    (async () => {
+      let pkce;
+      try {
+        pkce = await buildGooglePkceAuthUrl();
+      } catch (e) {
+        console.error("Google PKCE setup error:", e);
+        sendResponse({
+          success: false,
+          message: "Could not start Google sign-in.",
+        });
+        return;
+      }
+
+      chrome.identity.launchWebAuthFlow(
+        { url: pkce.authUrl, interactive: true },
+        (redirectedTo) => {
+          if (chrome.runtime.lastError || !redirectedTo) {
+            sendResponse({
+              success: false,
+              message: chrome.runtime.lastError?.message || "Google sign-in was cancelled.",
+            });
+            return;
+          }
+
+          let url;
+          try {
+            url = new URL(redirectedTo);
+          } catch {
+            sendResponse({
+              success: false,
+              message: "Invalid redirect from Google.",
+            });
+            return;
+          }
+
+          const oauthError = url.searchParams.get("error");
+          if (oauthError) {
+            sendResponse({
+              success: false,
+              message:
+                url.searchParams.get("error_description") || `Google error: ${oauthError}`,
+            });
+            return;
+          }
+
+          if (url.searchParams.get("state") !== pkce.state) {
+            sendResponse({
+              success: false,
+              message: "Google sign-in state mismatch.",
+            });
+            return;
+          }
+
+          const code = url.searchParams.get("code");
+          if (!code) {
+            sendResponse({
+              success: false,
+              message: "No authorization code from Google.",
+            });
+            return;
+          }
+
+          fetch("http://localhost:5000/api/auth/google", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              code,
+              code_verifier: pkce.codeVerifier,
+              redirect_uri: pkce.redirectUri,
+            }),
+          })
+            .then(async (res) => {
+              const data = await res.json().catch(() => null);
+
+              if (!res.ok) {
+                sendResponse({
+                  success: false,
+                  message: data?.message || "Google sign-in failed.",
+                  errors: data?.errors || null,
+                });
+                return;
+              }
+
+              const token = data?.data?.token || data?.token || null;
+              const user = data?.data?.user || data?.user || null;
+
+              if (!token) {
+                sendResponse({
+                  success: false,
+                  message: "Google sign-in succeeded but no token was returned.",
+                });
+                return;
+              }
+
+              chrome.storage.local.set({ authToken: token, currentUser: user }, () => {
+                sendResponse({
+                  success: true,
+                  message: "Signed in with Google.",
+                  data,
+                });
+              });
+            })
+            .catch((error) => {
+              console.error("Google auth error:", error);
+              sendResponse({
+                success: false,
+                message: "Could not connect to the backend server.",
+              });
+            });
+        }
+      );
+    })();
 
     return true;
   }

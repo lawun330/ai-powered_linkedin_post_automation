@@ -8,13 +8,15 @@
     "migrate": "node src/db/migrate.js",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
-    "format": "prettier . --write"
+    "format": "prettier . --write",
+    "sync-extension-google-client": "node scripts/sync-extension-google-client.js"
   },
   "dependencies": {
     "bcrypt": "^6.0.0",
     "cors": "^2.8.5",
     "dotenv": "^16.4.5",
     "express": "^4.19.2",
+    "google-auth-library": "^9.15.1",
     "helmet": "^8.1.0",
     "jsonwebtoken": "^9.0.2",
     "openai": "^4.56.0",
