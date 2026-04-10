@@ -8,9 +8,9 @@ async function createUser({
   profileImageUrl = null,
 }) {
   const query = `
-    INSERT INTO users (full_name, email, password_hash, auth_provider, profile_image_url)
-    VALUES ($1, $2, $3, $4, $5)
-    RETURNING id, full_name, email, auth_provider, created_at
+    INSERT INTO users (full_name, email, password_hash, auth_provider, account_status, email_verified)
+    VALUES ($1, $2, $3, 'local', 'pending_verification', FALSE)
+    RETURNING id, full_name, email, account_status, email_verified, created_at
   `;
   const values = [fullName, email, passwordHash, authProvider, profileImageUrl];
   const result = await pool.query(query, values);
@@ -55,7 +55,9 @@ async function initUserPreferences(userId) {
   const result = await pool.query(query, [userId]);
   // If already exists, fetch existing
   if (result.rows.length === 0) {
-    const existing = await pool.query("SELECT * FROM user_preferences WHERE user_id = $1", [userId]);
+    const existing = await pool.query("SELECT * FROM user_preferences WHERE user_id = $1", [
+      userId,
+    ]);
     return existing.rows[0];
   }
   return result.rows[0];
@@ -73,6 +75,80 @@ async function createSession({ userId, refreshTokenHash, ipAddress, userAgent, e
   return result.rows[0];
 }
 
+async function createEmailVerificationOtp({ userId, otpHash, expiresAt }) {
+  await pool.query(
+    `
+      DELETE FROM email_verification_otps
+      WHERE user_id = $1 AND consumed_at IS NULL
+    `,
+    [userId]
+  );
+
+  const result = await pool.query(
+    `
+      INSERT INTO email_verification_otps (user_id, otp_hash, expires_at)
+      VALUES ($1, $2, $3)
+      RETURNING id, user_id, attempts, expires_at, created_at
+    `,
+    [userId, otpHash, expiresAt]
+  );
+
+  return result.rows[0];
+}
+
+async function findLatestActiveEmailOtpByUserId(userId) {
+  const result = await pool.query(
+    `
+      SELECT id, user_id, otp_hash, attempts, expires_at, consumed_at, created_at
+      FROM email_verification_otps
+      WHERE user_id = $1 AND consumed_at IS NULL
+      ORDER BY created_at DESC
+      LIMIT 1
+    `,
+    [userId]
+  );
+
+  return result.rows[0] || null;
+}
+
+async function incrementEmailOtpAttempts(otpId) {
+  await pool.query(
+    `
+      UPDATE email_verification_otps
+      SET attempts = attempts + 1
+      WHERE id = $1
+    `,
+    [otpId]
+  );
+}
+
+async function consumeEmailOtp(otpId) {
+  await pool.query(
+    `
+      UPDATE email_verification_otps
+      SET consumed_at = NOW()
+      WHERE id = $1
+    `,
+    [otpId]
+  );
+}
+
+async function markUserEmailVerified(userId) {
+  const result = await pool.query(
+    `
+      UPDATE users
+      SET email_verified = TRUE,
+          account_status = 'active',
+          updated_at = NOW()
+      WHERE id = $1
+      RETURNING id, full_name, email, account_status, email_verified, created_at
+    `,
+    [userId]
+  );
+
+  return result.rows[0] || null;
+}
+
 module.exports = {
   createUser,
   findUserByEmail,
@@ -80,4 +156,9 @@ module.exports = {
   updateLastLoginAt,
   initUserPreferences,
   createSession,
+  createEmailVerificationOtp,
+  findLatestActiveEmailOtpByUserId,
+  incrementEmailOtpAttempts,
+  consumeEmailOtp,
+  markUserEmailVerified,
 };
