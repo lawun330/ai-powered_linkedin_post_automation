@@ -283,6 +283,36 @@ If the connection fails, verify:
 
 ---
 
+# Syncing Extension Google Client ID
+
+To ensure the Chrome extension uses the correct Google OAuth client ID during development, run:
+
+```bash
+npm run sync-extension-google-client
+```
+
+**only when**:
+- Google OAuth client is updated in `google_auth.json`
+- Switching between different Google Cloud projects or client configurations
+
+**Do not need to run this** every time you start the server or make regular code changes.
+
+The above command runs:
+
+```
+node scripts/sync-extension-google-client.js
+```
+
+which reads the client ID from your `google_auth.json` config and updates the Chrome extension's OAuth credentials automatically.
+
+Expected output:
+
+```output
+Updated extension/manifest.json oauth2.client_id from google_auth.json
+```
+
+---
+
 # Running the Development Server
 
 Start the server using:
