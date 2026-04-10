@@ -1,19 +1,25 @@
 const pool = require("../config/database");
 
-async function createUser({ fullName, email, passwordHash }) {
+async function createUser({
+  fullName,
+  email,
+  passwordHash,
+  authProvider = "local",
+  profileImageUrl = null,
+}) {
   const query = `
     INSERT INTO users (full_name, email, password_hash, auth_provider, account_status, email_verified)
     VALUES ($1, $2, $3, 'local', 'pending_verification', FALSE)
     RETURNING id, full_name, email, account_status, email_verified, created_at
   `;
-  const values = [fullName, email, passwordHash];
+  const values = [fullName, email, passwordHash, authProvider, profileImageUrl];
   const result = await pool.query(query, values);
   return result.rows[0];
 }
 
 async function findUserByEmail(email) {
   const query = `
-    SELECT id, full_name, email, password_hash, account_status, email_verified, created_at
+    SELECT id, full_name, email, password_hash, auth_provider, account_status, email_verified, created_at
     FROM users
     WHERE email = $1
     LIMIT 1

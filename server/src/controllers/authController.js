@@ -1,6 +1,6 @@
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
-const crypto = require("crypto"); // Added for generating secure refresh tokens
+const crypto = require("crypto");
 const env = require("../config/env");
 const {
   validateSignup,
@@ -145,6 +145,9 @@ async function signup(req, res, next) {
   }
 }
 
+// ------
+// Login
+// ------
 async function login(req, res, next) {
   try {
     const { email, password } = req.body;

@@ -89,6 +89,14 @@ CREATE TABLE IF NOT EXISTS usage_events (
     CONSTRAINT check_event_name CHECK (event_name IN ('signup', 'login', 'post_generated', 'draft_saved'))
 );
 
+-- keep constraints in sync even when table already exists
+ALTER TABLE usage_events DROP CONSTRAINT IF EXISTS check_event_type;
+ALTER TABLE usage_events
+  ADD CONSTRAINT check_event_type CHECK (event_type IN ('auth', 'post', 'draft', 'edit')) NOT VALID;
+
+ALTER TABLE usage_events DROP CONSTRAINT IF EXISTS check_event_name;
+ALTER TABLE usage_events
+  ADD CONSTRAINT check_event_name CHECK (event_name IN ('signup', 'login', 'post_generated', 'draft_saved')) NOT VALID;
 
 -- separate admins from users for better security isolation (RBAC).
 CREATE TABLE IF NOT EXISTS admins (
