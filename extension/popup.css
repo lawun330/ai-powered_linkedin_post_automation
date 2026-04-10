@@ -124,6 +124,7 @@ button.auth-cta-btn:focus-visible {
   width: 1.15em;
   height: 1.15em;
   flex-shrink: 0;
+  object-fit: contain;
 }
 
 .google-auth-btn__label {
