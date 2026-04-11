@@ -423,3 +423,40 @@ button.auth-cta-btn:focus-visible {
 .hidden {
   display: none !important;
 }
+
+.generator-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.generator-header h2 {
+  margin-bottom: 0;
+}
+
+.logout-icon-btn {
+  width: 34px;
+  height: 34px;
+  margin-top: 0;
+  padding: 0;
+  flex: 0 0 34px;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #fff1f2;
+  color: #dc2626;
+  border: 1px solid #fecdd3;
+  border-radius: 8px;
+}
+
+.logout-icon-btn:hover {
+  background: #ffe4e6;
+  color: #b91c1c;
+  border-color: #fda4af;
+}
+
+.logout-icon-btn svg {
+  display: block;
+}

@@ -21,6 +21,7 @@ const messageBox = document.getElementById("message");
 const saveDraftBtn = document.getElementById("saveDraftBtn");
 const copyAllBtn = document.getElementById("copyAllBtn");
 const loadingText = document.getElementById("loadingText");
+const logoutBtn = document.getElementById("logoutBtn");
 
 // =========================
 // Auth view elements
@@ -183,6 +184,10 @@ function loadFromLocal() {
   } catch (e) {
     console.error("Failed to parse local storage", e);
   }
+}
+
+function clearLocalSessionData() {
+  localStorage.removeItem("generatedPost");
 }
 
 function hideAllViews() {
@@ -614,6 +619,48 @@ document.querySelectorAll(".js-google-auth").forEach((btn) => {
     });
   });
 });
+
+if (logoutBtn) {
+  logoutBtn.addEventListener("click", () => {
+    const confirmed = window.confirm("Are you sure you want to logout?");
+
+    if (!confirmed) {
+      return;
+    }
+
+    setLoading(true, "Logging out...");
+    showMessage("");
+
+    chrome.runtime.sendMessage({ type: "LOGOUT" }, (response) => {
+      setLoading(false, "Generating post...");
+
+      if (chrome.runtime.lastError) {
+        showMessage("Failed to communicate with extension background script.");
+        return;
+      }
+
+      if (handleApiError(response, "Logout failed.")) {
+        return;
+      }
+
+      clearLocalSessionData();
+
+      if (signupEmail) signupEmail.value = "";
+      if (signupPassword) signupPassword.value = "";
+      if (signupName) signupName.value = "";
+      if (loginEmail) loginEmail.value = "";
+      if (loginPassword) loginPassword.value = "";
+
+      if (output) output.value = "";
+      if (hashtagsOutput) hashtagsOutput.value = "";
+      if (ctaOutput) ctaOutput.value = "";
+      if (promptInput) promptInput.value = "";
+
+      showView(authChoiceView);
+      showMessage("Logged out successfully.");
+    });
+  });
+}
 
 // =========================
 // Generator actions
