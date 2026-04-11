@@ -132,18 +132,18 @@
 
       <h2>Verify Email</h2>
 
-      <p class="subtitle">
+      <p id="otpInstructions" class="subtitle">
         Enter the 6-digit code sent to
         <strong id="otpEmailHint">your email</strong>.
       </p>
 
       <div id="otpInputs" class="otp-input-row" aria-label="One-time password input">
-        <input type="text" class="otp-digit" inputmode="numeric" maxlength="1" autocomplete="one-time-code" />
-        <input type="text" class="otp-digit" inputmode="numeric" maxlength="1" />
-        <input type="text" class="otp-digit" inputmode="numeric" maxlength="1" />
-        <input type="text" class="otp-digit" inputmode="numeric" maxlength="1" />
-        <input type="text" class="otp-digit" inputmode="numeric" maxlength="1" />
-        <input type="text" class="otp-digit" inputmode="numeric" maxlength="1" />
+        <input type="text" class="otp-digit" inputmode="numeric" maxlength="1" autocomplete="one-time-code" aria-label="OTP digit 1 of 6" aria-describedby="otpInstructions" />
+        <input type="text" class="otp-digit" inputmode="numeric" maxlength="1" aria-label="OTP digit 2 of 6" aria-describedby="otpInstructions" />
+        <input type="text" class="otp-digit" inputmode="numeric" maxlength="1" aria-label="OTP digit 3 of 6" aria-describedby="otpInstructions" />
+        <input type="text" class="otp-digit" inputmode="numeric" maxlength="1" aria-label="OTP digit 4 of 6" aria-describedby="otpInstructions" />
+        <input type="text" class="otp-digit" inputmode="numeric" maxlength="1" aria-label="OTP digit 5 of 6" aria-describedby="otpInstructions" />
+        <input type="text" class="otp-digit" inputmode="numeric" maxlength="1" aria-label="OTP digit 6 of 6" aria-describedby="otpInstructions" />
       </div>
 
       <button id="verifyOtpBtn">Verify OTP</button>

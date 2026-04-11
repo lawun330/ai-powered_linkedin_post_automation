@@ -19,6 +19,7 @@ const {
   initUserPreferences,
   createEmailVerificationOtp,
   findLatestActiveEmailOtpByUserId,
+  findLatestEmailOtpByUserId,
   incrementEmailOtpAttempts,
   consumeEmailOtp,
   markUserEmailVerified,
@@ -40,7 +41,7 @@ function generateRefreshToken() {
 }
 
 function generateOtpCode() {
-  return String(Math.floor(100000 + Math.random() * 900000));
+  return crypto.randomInt(100000, 1000000).toString();
 }
 
 async function createSessionAndTokens(user, req) {
@@ -301,6 +302,13 @@ async function verifyEmailOtp(req, res, next) {
   }
 }
 
+function getGenericOtpResendResponse() {
+  return {
+    success: true,
+    message: "If the account exists and still needs verification, a new OTP will be sent shortly.",
+  };
+}
+
 async function resendVerificationOtp(req, res, next) {
   try {
     const { email } = req.body;
@@ -313,12 +321,21 @@ async function resendVerificationOtp(req, res, next) {
     const normalizedEmail = email.trim().toLowerCase();
     const user = await findUserByEmail(normalizedEmail);
 
-    if (!user) {
-      return res.status(404).json({ success: false, message: "User not found" });
+    if (!user || user.email_verified) {
+      return res.status(200).json(getGenericOtpResendResponse());
     }
 
-    if (user.email_verified) {
-      return res.status(400).json({ success: false, message: "Email is already verified" });
+    const latestOtp = await findLatestEmailOtpByUserId(user.id);
+    const resendCooldownMs = env.otpResendCooldownSeconds * 1000;
+
+    if (latestOtp) {
+      const nextAllowedAt = new Date(latestOtp.created_at).getTime() + resendCooldownMs;
+      if (Date.now() < nextAllowedAt) {
+        return res.status(429).json({
+          success: false,
+          message: `Please wait ${env.otpResendCooldownSeconds} seconds before requesting another OTP.`,
+        });
+      }
     }
 
     const otpCode = generateOtpCode();
@@ -337,13 +354,7 @@ async function resendVerificationOtp(req, res, next) {
       otpCode,
     });
 
-    return res.status(200).json({
-      success: true,
-      message: "A new verification OTP has been sent to your email.",
-      data: {
-        email: user.email,
-      },
-    });
+    return res.status(200).json(getGenericOtpResendResponse());
   } catch (err) {
     next(err);
   }

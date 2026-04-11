@@ -76,24 +76,35 @@ async function createSession({ userId, refreshTokenHash, ipAddress, userAgent, e
 }
 
 async function createEmailVerificationOtp({ userId, otpHash, expiresAt }) {
-  await pool.query(
-    `
-      DELETE FROM email_verification_otps
-      WHERE user_id = $1 AND consumed_at IS NULL
-    `,
-    [userId]
-  );
+  const client = await pool.connect();
 
-  const result = await pool.query(
-    `
-      INSERT INTO email_verification_otps (user_id, otp_hash, expires_at)
-      VALUES ($1, $2, $3)
-      RETURNING id, user_id, attempts, expires_at, created_at
-    `,
-    [userId, otpHash, expiresAt]
-  );
+  try {
+    await client.query("BEGIN");
 
-  return result.rows[0];
+    const result = await client.query(
+      `
+        INSERT INTO email_verification_otps (user_id, otp_hash, expires_at)
+        VALUES ($1, $2, $3)
+        ON CONFLICT (user_id) WHERE consumed_at IS NULL
+        DO UPDATE
+        SET otp_hash = EXCLUDED.otp_hash,
+            expires_at = EXCLUDED.expires_at,
+            attempts = 0,
+            consumed_at = NULL,
+            created_at = NOW()
+        RETURNING id, user_id, attempts, expires_at, created_at
+      `,
+      [userId, otpHash, expiresAt]
+    );
+
+    await client.query("COMMIT");
+    return result.rows[0];
+  } catch (error) {
+    await client.query("ROLLBACK");
+    throw error;
+  } finally {
+    client.release();
+  }
 }
 
 async function findLatestActiveEmailOtpByUserId(userId) {
@@ -102,6 +113,21 @@ async function findLatestActiveEmailOtpByUserId(userId) {
       SELECT id, user_id, otp_hash, attempts, expires_at, consumed_at, created_at
       FROM email_verification_otps
       WHERE user_id = $1 AND consumed_at IS NULL
+      ORDER BY created_at DESC
+      LIMIT 1
+    `,
+    [userId]
+  );
+
+  return result.rows[0] || null;
+}
+
+async function findLatestEmailOtpByUserId(userId) {
+  const result = await pool.query(
+    `
+      SELECT id, user_id, otp_hash, attempts, expires_at, consumed_at, created_at
+      FROM email_verification_otps
+      WHERE user_id = $1
       ORDER BY created_at DESC
       LIMIT 1
     `,
@@ -158,6 +184,7 @@ module.exports = {
   createSession,
   createEmailVerificationOtp,
   findLatestActiveEmailOtpByUserId,
+  findLatestEmailOtpByUserId,
   incrementEmailOtpAttempts,
   consumeEmailOtp,
   markUserEmailVerified,

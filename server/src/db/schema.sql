@@ -130,6 +130,9 @@ CREATE INDEX IF NOT EXISTS idx_usage_events_session_id ON usage_events(session_i
 CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
 CREATE INDEX IF NOT EXISTS idx_email_verification_otps_user_id ON email_verification_otps(user_id);
 CREATE INDEX IF NOT EXISTS idx_email_verification_otps_expires_at ON email_verification_otps(expires_at);
+CREATE UNIQUE INDEX IF NOT EXISTS ux_email_verification_otps_one_active_per_user
+  ON email_verification_otps(user_id)
+  WHERE consumed_at IS NULL;
 
 CREATE INDEX IF NOT EXISTS idx_drafts_user_id ON drafts(user_id);
 CREATE INDEX IF NOT EXISTS idx_drafts_status ON drafts(status);
