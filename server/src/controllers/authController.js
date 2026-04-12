@@ -39,14 +39,17 @@ function generateRefreshToken() {
   return crypto.randomBytes(40).toString("hex");
 }
 
+// Helper to generate a random OTP code
 function generateOtpCode() {
   return crypto.randomInt(100000, 1000000).toString();
 }
 
+// Helper to create a session and tokens
+// New Schema requirement for Refresh Tokens & IP tracking
 async function createSessionAndTokens(user, req) {
   const refreshToken = generateRefreshToken();
   const refreshTokenHash = await bcrypt.hash(refreshToken, 10);
-  const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+  const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 days from now
   const ipAddress = req.ip || req.connection.remoteAddress;
   const userAgent = req.headers["user-agent"] || "unknown";
 
@@ -97,20 +100,8 @@ async function signup(req, res, next) {
     // 2. Initialize User Preferences (New Schema)
     await initUserPreferences(user.id);
 
-    // 3. Create Session (New Schema requirement for Refresh Tokens & IP tracking)
-    const refreshToken = generateRefreshToken();
-    const refreshTokenHash = await bcrypt.hash(refreshToken, 10);
-    const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 days from now
-    const ipAddress = req.ip || req.connection.remoteAddress;
-    const userAgent = req.headers["user-agent"] || "unknown";
-
-    const session = await createSession({
-      userId: user.id,
-      refreshTokenHash,
-      ipAddress,
-      userAgent,
-      expiresAt,
-    });
+    // 3. Create Session (New Schema)
+    const { token, refreshToken, session } = await createSessionAndTokens(user, req);
 
     // 4. Log usage event via centralized event service
     try {
@@ -122,8 +113,6 @@ async function signup(req, res, next) {
     } catch (err) {
       return next(err);
     }
-
-    const token = signToken(user);
 
     return res.status(201).json({
       success: true,
@@ -174,19 +163,7 @@ async function login(req, res, next) {
     // REMOVED: updateLastLoginAt(user.id) - this is now handled by usage_events
 
     // 2. Create Session (New Schema)
-    const refreshToken = generateRefreshToken();
-    const refreshTokenHash = await bcrypt.hash(refreshToken, 10);
-    const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 days from now
-    const ipAddress = req.ip || req.connection.remoteAddress;
-    const userAgent = req.headers["user-agent"] || "unknown";
-
-    const session = await createSession({
-      userId: user.id,
-      refreshTokenHash,
-      ipAddress,
-      userAgent,
-      expiresAt,
-    });
+    const { token, refreshToken, session } = await createSessionAndTokens(user, req);
 
     // 3. Log usage event via centralized event service
     try {
@@ -198,8 +175,6 @@ async function login(req, res, next) {
     } catch (err) {
       return next(err);
     }
-
-    const token = signToken(user);
 
     return res.status(200).json({
       success: true,
@@ -237,7 +212,8 @@ async function googleSignupLogin(req, res, next) {
     if (!googleConfig) {
       return res.status(503).json({
         success: false,
-        message: "Google sign-in is not configured. Add server/google_auth.json with your OAuth client.",
+        message:
+          "Google sign-in is not configured. Add server/google_auth.json with your OAuth client.",
       });
     }
 
@@ -263,16 +239,6 @@ async function googleSignupLogin(req, res, next) {
       return res.status(401).json({ success: false, message: exchanged.message });
     }
 
-function getGenericOtpResendResponse() {
-  return {
-    success: true,
-    message: "If the account exists and still needs verification, a new OTP will be sent shortly.",
-  };
-}
-
-async function resendVerificationOtp(req, res, next) {
-  try {
-    const { email } = req.body;
     const verified = await verifyGoogleIdToken(exchanged.idToken, googleConfig.clientId);
     if (!verified.ok) {
       return res.status(401).json({ success: false, message: verified.message });
@@ -292,18 +258,6 @@ async function resendVerificationOtp(req, res, next) {
     const fullName = (payload.name && String(payload.name).trim()) || normalizedEmail.split("@")[0];
     const picture = payload.picture ? String(payload.picture) : null;
 
-    if (!user || user.email_verified) {
-      return res.status(200).json(getGenericOtpResendResponse());
-    }
-
-    const latestOtp = await findLatestEmailOtpByUserId(user.id);
-    const resendCooldownMs = env.otpResendCooldownSeconds * 1000;
-
-    if (latestOtp) {
-      const nextAllowedAt = new Date(latestOtp.created_at).getTime() + resendCooldownMs;
-      if (Date.now() < nextAllowedAt) {
-        return res.status(200).json(getGenericOtpResendResponse());
-      }
     let user = await findUserByEmail(normalizedEmail);
     let isNewUser = false;
 
@@ -329,19 +283,7 @@ async function resendVerificationOtp(req, res, next) {
       await initUserPreferences(user.id);
     }
 
-    const refreshToken = generateRefreshToken();
-    const refreshTokenHash = await bcrypt.hash(refreshToken, 10);
-    const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
-    const ipAddress = req.ip || req.connection.remoteAddress;
-    const userAgent = req.headers["user-agent"] || "unknown";
-
-    const session = await createSession({
-      userId: user.id,
-      refreshTokenHash,
-      ipAddress,
-      userAgent,
-      expiresAt,
-    });
+    const { token, refreshToken, session } = await createSessionAndTokens(user, req);
 
     if (isNewUser) {
       await logSignupEvent({ userId: user.id, sessionId: session.id, provider: "google" });
@@ -349,9 +291,6 @@ async function resendVerificationOtp(req, res, next) {
       await logLoginEvent({ userId: user.id, sessionId: session.id, provider: "google" });
     }
 
-    const token = signToken(user);
-
-    return res.status(200).json(getGenericOtpResendResponse());
     return res.status(200).json({
       success: true,
       data: {
@@ -365,6 +304,58 @@ async function resendVerificationOtp(req, res, next) {
   }
 }
 
+// ------
+// Email OTP Verification
+// ------
+function getGenericOtpResendResponse() {
+  return {
+    success: true,
+    message: "If the account exists and still needs verification, a new OTP will be sent shortly.",
+  };
+}
+
+async function resendVerificationOtp(req, res, next) {
+  try {
+    const { email } = req.body || {};
+    if (!email || typeof email !== "string" || !email.trim()) {
+      return res.status(400).json({ success: false, message: "email is required" });
+    }
+
+    const normalizedEmail = email.trim().toLowerCase();
+    const user = await findUserByEmail(normalizedEmail);
+
+    if (!user || user.email_verified || user.auth_provider !== "local") {
+      return res.status(200).json(getGenericOtpResendResponse());
+    }
+
+    const latestOtp = await findLatestEmailOtpByUserId(user.id);
+    const resendCooldownMs = env.otpResendCooldownSeconds * 1000;
+
+    if (latestOtp) {
+      const nextAllowedAt = new Date(latestOtp.created_at).getTime() + resendCooldownMs;
+      if (Date.now() < nextAllowedAt) {
+        return res.status(200).json(getGenericOtpResendResponse());
+      }
+    }
+
+    const otpPlain = generateOtpCode();
+    const otpHash = await bcrypt.hash(otpPlain, 10);
+    const expiresAt = new Date(Date.now() + env.otpExpiryMinutes * 60 * 1000);
+    await createEmailVerificationOtp({
+      userId: user.id,
+      otpHash,
+      expiresAt,
+    });
+
+    return res.status(200).json(getGenericOtpResendResponse());
+  } catch (err) {
+    next(err);
+  }
+}
+
+// ------
+// Me
+// ------
 async function me(req, res, next) {
   try {
     const user = await findUserById(req.user.id);
@@ -382,5 +373,6 @@ module.exports = {
   signup,
   login,
   googleSignupLogin,
+  resendVerificationOtp,
   me,
 };
