@@ -284,6 +284,10 @@ async function verifyEmailOtp(req, res, next) {
       return res.status(404).json({ success: false, message: "User not found" });
     }
 
+    if (user.account_status === "suspended") {
+      return res.status(403).json({ success: false, message: "Account is suspended" });
+    }
+
     if (user.email_verified) {
       return res.status(200).json({
         success: true,
@@ -386,6 +390,10 @@ async function resendVerificationOtp(req, res, next) {
         success: true,
         message: RESEND_GENERIC_MESSAGE,
       });
+    }
+
+    if (user.account_status === "suspended") {
+      return res.status(403).json({ success: false, message: "Account is suspended" });
     }
 
     if (user.email_verified) {

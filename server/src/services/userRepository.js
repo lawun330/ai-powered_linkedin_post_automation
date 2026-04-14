@@ -177,7 +177,10 @@ async function markUserEmailVerified(userId) {
     `
       UPDATE users
       SET email_verified = TRUE,
-          account_status = 'active',
+          account_status = CASE
+            WHEN account_status = 'pending_verification' THEN 'active'
+            ELSE account_status
+          END,
           updated_at = NOW()
       WHERE id = $1
       RETURNING id, full_name, email, account_status, email_verified, created_at
