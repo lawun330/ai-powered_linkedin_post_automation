@@ -15,11 +15,13 @@ const bulletBtn = document.getElementById("bulletBtn");
 const listMenuBtn = document.getElementById("listMenuBtn");
 const listMenu = document.getElementById("listMenu");
 const codeBtn = document.getElementById("codeBtn");
+const clearFormatBtn = document.getElementById("clearFormatBtn");
 const loading = document.getElementById("loading");
 const messageBox = document.getElementById("message");
 const saveDraftBtn = document.getElementById("saveDraftBtn");
 const copyAllBtn = document.getElementById("copyAllBtn");
 const loadingText = document.getElementById("loadingText");
+const logoutBtn = document.getElementById("logoutBtn");
 
 // =========================
 // Auth view elements
@@ -29,6 +31,8 @@ const signupView = document.getElementById("signupView");
 const loginView = document.getElementById("loginView");
 const otpView = document.getElementById("otpView");
 const generatorView = document.getElementById("generatorView");
+const forgotPasswordView = document.getElementById("forgotPasswordView");
+const resetPasswordView = document.getElementById("resetPasswordView");
 
 // =========================
 // Auth navigation buttons
@@ -41,6 +45,10 @@ const backFromOtp = document.getElementById("backFromOtp");
 const goToLoginFromSignup = document.getElementById("goToLoginFromSignup");
 const goToSignupFromLogin = document.getElementById("goToSignupFromLogin");
 const goBackToSignupFromOtp = document.getElementById("goBackToSignupFromOtp");
+const goToForgotPassword = document.getElementById("goToForgotPassword");
+const backFromForgotPassword = document.getElementById("backFromForgotPassword");
+const goToResetPasswordView = document.getElementById("goToResetPasswordView");
+const backFromResetPassword = document.getElementById("backFromResetPassword");
 
 // =========================
 // Auth form buttons
@@ -49,6 +57,8 @@ const signupBtn = document.getElementById("signupBtn");
 const loginBtn = document.getElementById("loginBtn");
 const verifyOtpBtn = document.getElementById("verifyOtpBtn");
 const resendOtpBtn = document.getElementById("resendOtpBtn");
+const sendResetCodeBtn = document.getElementById("sendResetCodeBtn");
+const resetPasswordBtn = document.getElementById("resetPasswordBtn");
 
 // =========================
 // Auth form inputs
@@ -64,6 +74,16 @@ const toggleLoginPassword = document.getElementById("toggleLoginPassword");
 const otpEmailHint = document.getElementById("otpEmailHint");
 const otpInputs = Array.from(document.querySelectorAll(".otp-digit"));
 const RESEND_COOLDOWN_SECONDS = 30;
+
+const forgotPasswordEmail = document.getElementById("forgotPasswordEmail");
+const resetPasswordEmail = document.getElementById("resetPasswordEmail");
+const resetPasswordCode = document.getElementById("resetPasswordCode");
+const newPassword = document.getElementById("newPassword");
+const confirmNewPassword = document.getElementById("confirmNewPassword");
+const toggleNewPassword = document.getElementById("toggleNewPassword");
+const toggleConfirmNewPassword = document.getElementById("toggleConfirmNewPassword");
+
+
 
 function setupPasswordToggle(toggleBtn, inputEl) {
   if (!toggleBtn || !inputEl) return;
@@ -84,6 +104,8 @@ function setupPasswordToggle(toggleBtn, inputEl) {
 
 setupPasswordToggle(toggleSignupPassword, signupPassword);
 setupPasswordToggle(toggleLoginPassword, loginPassword);
+setupPasswordToggle(toggleNewPassword, newPassword);
+setupPasswordToggle(toggleConfirmNewPassword, confirmNewPassword);
 
 let pendingVerificationEmail = "";
 let resendCooldownTimer = null;
@@ -196,6 +218,7 @@ let lastFocusedFormatField = output;
   el.addEventListener("focusin", () => {
     lastFocusedFormatField = el;
   });
+  el.addEventListener("keydown", handleFormatFieldKeydown);
 });
 
 // =========================
@@ -204,6 +227,34 @@ let lastFocusedFormatField = output;
 function showMessage(message) {
   if (!messageBox) return;
   messageBox.textContent = message;
+}
+
+const BUTTON_COOLDOWN_MS = 1000;
+
+// briefly disabled certain buttons after click to prevent spamming during cooldown period
+function withButtonCooldown(btn, action) {
+  if (btn && btn.disabled) {
+    return;
+  }
+
+  const armRelease = () => {
+    if (!btn) {
+      return;
+    }
+    setTimeout(() => {
+      btn.classList.remove("cooldown", "active");
+      btn.disabled = false;
+    }, BUTTON_COOLDOWN_MS);
+  };
+
+  if (btn) {
+    btn.disabled = true;
+    btn.classList.add("cooldown", "active");
+  }
+
+  Promise.resolve()
+    .then(() => action())
+    .then(armRelease, armRelease);
 }
 
 function setLoading(isLoading, text = "Generating post...") {
@@ -241,7 +292,7 @@ function setLoading(isLoading, text = "Generating post...") {
 }
 
 // =========================
-// Save to local Storage
+// Save to local storage
 // =========================
 function saveToLocal() {
   const backup = {
@@ -254,9 +305,8 @@ function saveToLocal() {
 }
 
 // ===========================
-// Load from local
+// Load from local storage
 // ===========================
-
 function loadFromLocal() {
   const saved = localStorage.getItem("generatedPost");
   if (!saved) return;
@@ -272,6 +322,9 @@ function loadFromLocal() {
   }
 }
 
+function clearLocalSessionData() {
+  localStorage.removeItem("generatedPost");
+}
 
 function hideAllViews() {
   if (authChoiceView) authChoiceView.classList.add("hidden");
@@ -279,6 +332,8 @@ function hideAllViews() {
   if (loginView) loginView.classList.add("hidden");
   if (otpView) otpView.classList.add("hidden");
   if (generatorView) generatorView.classList.add("hidden");
+  if (forgotPasswordView) forgotPasswordView.classList.add("hidden");
+  if (resetPasswordView) resetPasswordView.classList.add("hidden");
 }
 
 function showView(view) {
@@ -358,45 +413,6 @@ function downloadDraftTxt(payload) {
 // =========================
 // Text formatting
 // =========================
-let activeFormatButton = null;
-
-function setActiveFormatButton(btn) {
-  if (!btn) return;
-
-  if (activeFormatButton === btn) {
-    btn.classList.remove("active");
-    activeFormatButton = null;
-    return;
-  }
-
-  if (activeFormatButton) {
-    activeFormatButton.classList.remove("active");
-  }
-
-  btn.classList.add("active");
-  activeFormatButton = btn;
-}
-
-function activateFormatButton(btn) {
-  if (!btn) return;
-
-  if (activeFormatButton && activeFormatButton !== btn) {
-    activeFormatButton.classList.remove("active");
-  }
-
-  btn.classList.add("active");
-  activeFormatButton = btn;
-}
-
-function deactivateFormatButton(btn) {
-  if (!btn) return;
-
-  btn.classList.remove("active");
-  if (activeFormatButton === btn) {
-    activeFormatButton = null;
-  }
-}
-
 function getFormattingTarget() {
   const fields = [output, hashtagsOutput, ctaOutput].filter(Boolean);
   const active = document.activeElement;
@@ -417,7 +433,12 @@ function applyOutputEdit(targetEl, result) {
   targetEl.value = result.value;
   targetEl.focus();
   targetEl.setSelectionRange(result.selectionStart, result.selectionEnd);
+  saveToLocal();
   return true;
+}
+
+function showToolbarToggleMessage(result, removedText, appliedText) {
+  showMessage(result.toggledOff ? removedText : appliedText);
 }
 
 function applyEmphasis(kind, emptyMessage) {
@@ -439,7 +460,7 @@ function applyEmphasis(kind, emptyMessage) {
       ? fmt.applyBold(target.value, start, end)
       : kind === "italic"
         ? fmt.applyItalic(target.value, start, end)
-        : fmt.applyCodeFence(target.value, start, end);
+        : fmt.applyCode(target.value, start, end);
 
   if (!result) {
     showMessage(emptyMessage);
@@ -447,6 +468,13 @@ function applyEmphasis(kind, emptyMessage) {
   }
 
   applyOutputEdit(target, result);
+  if (kind === "bold") {
+    showToolbarToggleMessage(result, "Bold removed.", "Bold applied.");
+  } else if (kind === "italic") {
+    showToolbarToggleMessage(result, "Italics removed.", "Italics applied.");
+  } else {
+    showToolbarToggleMessage(result, "Code removed.", "Code applied.");
+  }
 }
 
 function applyBulletPoints() {
@@ -470,11 +498,32 @@ function applyBulletPoints() {
   }
 
   applyOutputEdit(target, result);
+  showToolbarToggleMessage(result, "Bullet list removed.", "Bullet list applied.");
   return result;
 }
 
-function applyCodeFence() {
-  applyEmphasis("code", "Select text first.");
+function applyClearFormatting() {
+  const target = getFormattingTarget();
+  if (!target) {
+    return;
+  }
+
+  const fmt = window.LinkedInPostFormatter;
+  if (!fmt || typeof fmt.applyClearFormatting !== "function") {
+    return;
+  }
+
+  const start = target.selectionStart;
+  const end = target.selectionEnd;
+  const result = fmt.applyClearFormatting(target.value, start, end);
+
+  if (!result) {
+    showMessage("Select text first.");
+    return;
+  }
+
+  applyOutputEdit(target, result);
+  showToolbarToggleMessage(result, "Formatting removed.", "No formatting to remove.");
 }
 
 function applyListFormat(kind) {
@@ -498,6 +547,7 @@ function applyListFormat(kind) {
   }
 
   applyOutputEdit(target, result);
+  showToolbarToggleMessage(result, "Numbered list removed.", "Numbered list applied.");
   return result;
 }
 
@@ -528,12 +578,9 @@ if (listMenuBtn && listMenu) {
       e.stopPropagation();
       const kind = btn.getAttribute("data-list-kind");
       if (kind) {
-        const result = applyListFormat(kind);
-        if (result?.toggledOff) {
-          deactivateFormatButton(listMenuBtn);
-        } else {
-          activateFormatButton(listMenuBtn);
-        }
+        withButtonCooldown(listMenuBtn, () => {
+          applyListFormat(kind);
+        });
       }
       closeListMenu();
     });
@@ -604,6 +651,33 @@ if (goToSignupFromLogin) {
 if (goBackToSignupFromOtp) {
   goBackToSignupFromOtp.addEventListener("click", () => {
     showView(signupView);
+  });
+}
+    
+if (goToForgotPassword) {
+  goToForgotPassword.addEventListener("click", () => {
+    showView(forgotPasswordView);
+  });
+}
+
+if (backFromForgotPassword) {
+  backFromForgotPassword.addEventListener("click", () => {
+    showView(loginView);
+  });
+}
+
+if (goToResetPasswordView) {
+  goToResetPasswordView.addEventListener("click", () => {
+    if (forgotPasswordEmail?.value.trim() && resetPasswordEmail) {
+      resetPasswordEmail.value = forgotPasswordEmail.value.trim();
+    }
+    showView(resetPasswordView);
+  });
+}
+
+if (backFromResetPassword) {
+  backFromResetPassword.addEventListener("click", () => {
+    showView(loginView);
   });
 }
 
@@ -811,6 +885,151 @@ if (resendOtpBtn) {
 }
 
 
+if (logoutBtn) {
+  logoutBtn.addEventListener("click", () => {
+    const confirmed = window.confirm("Are you sure you want to logout?");
+
+    if (!confirmed) {
+      return;
+    }
+
+    setLoading(true, "Logging out...");
+    showMessage("");
+
+    chrome.runtime.sendMessage({ type: "LOGOUT" }, (response) => {
+      setLoading(false, "Generating post...");
+
+      if (chrome.runtime.lastError) {
+        showMessage("Failed to communicate with extension background script.");
+        return;
+      }
+
+      if (handleApiError(response, "Logout failed.")) {
+        return;
+      }
+
+      clearLocalSessionData();
+
+      if (signupEmail) signupEmail.value = "";
+      if (signupPassword) signupPassword.value = "";
+      if (signupName) signupName.value = "";
+      if (loginEmail) loginEmail.value = "";
+      if (loginPassword) loginPassword.value = "";
+
+      if (output) output.value = "";
+      if (hashtagsOutput) hashtagsOutput.value = "";
+      if (ctaOutput) ctaOutput.value = "";
+      if (promptInput) promptInput.value = "";
+
+      showView(authChoiceView);
+      showMessage("Logged out successfully.");
+    });
+  });
+}
+
+if (sendResetCodeBtn) {
+  sendResetCodeBtn.addEventListener("click", () => {
+    const email = forgotPasswordEmail?.value.trim();
+
+    if (!email) {
+      showMessage("Please enter your email.");
+      return;
+    }
+
+    setLoading(true, "Sending reset code...");
+    showMessage("");
+
+    chrome.runtime.sendMessage(
+      {
+        type: "SEND_RESET_CODE",
+        payload: {
+          email,
+        },
+      },
+      (response) => {
+        setLoading(false, "Generating post...");
+
+        if (chrome.runtime.lastError) {
+          showMessage("Failed to communicate with extension background script.");
+          return;
+        }
+
+        if (handleApiError(response, "Failed to send reset code.")) {
+          return;
+        }
+
+        if (resetPasswordEmail) {
+          resetPasswordEmail.value = email;
+        }
+
+        showMessage(response?.message || "Reset code sent. Check your email.");
+        showView(resetPasswordView);
+      }
+    );
+  });
+}
+
+if (resetPasswordBtn) {
+  resetPasswordBtn.addEventListener("click", () => {
+    const email = resetPasswordEmail?.value.trim();
+    const code = resetPasswordCode?.value.trim();
+    const password = newPassword?.value.trim();
+    const confirmPassword = confirmNewPassword?.value.trim();
+
+    if (!email || !code || !password || !confirmPassword) {
+      showMessage("Please fill in all reset password fields.");
+      return;
+    }
+
+    if (password !== confirmPassword) {
+      showMessage("Passwords do not match.");
+      return;
+    }
+
+    setLoading(true, "Resetting password...");
+    showMessage("");
+
+    chrome.runtime.sendMessage(
+      {
+        type: "RESET_PASSWORD",
+        payload: {
+          email,
+          reset_code: code,
+          new_password: password,
+        },
+      },
+      (response) => {
+        setLoading(false, "Generating post...");
+
+        if (chrome.runtime.lastError) {
+          showMessage("Failed to communicate with extension background script.");
+          return;
+        }
+
+        if (handleApiError(response, "Failed to reset password.")) {
+          return;
+        }
+
+        if (forgotPasswordEmail) {
+          forgotPasswordEmail.value = email;
+        }
+
+        if (loginEmail) {
+          loginEmail.value = email;
+        }
+
+        if (resetPasswordCode) resetPasswordCode.value = "";
+        if (newPassword) newPassword.value = "";
+        if (confirmNewPassword) confirmNewPassword.value = "";
+        if (loginPassword) loginPassword.value = "";
+
+        showMessage(response?.message || "Password reset successful. Please log in.");
+        showView(loginView);
+      }
+    );
+  });
+}
+
 // =========================
 // Generator actions
 // =========================
@@ -959,87 +1178,61 @@ if (saveDraftBtn) {
   });
 }
 
-const COPY_COOLDOWN_MS = 1500;
-
 // copy buttons for each textarea
 document.querySelectorAll(".textarea-copy-btn").forEach((btn) => {
-  btn.addEventListener("click", async () => {
-    if (btn.disabled) return;
-
+  btn.addEventListener("click", () => {
     const id = btn.getAttribute("data-copy-target");
     const ta = id ? document.getElementById(id) : null;
-    if (!ta) return;
+    if (!ta) {
+      return;
+    }
 
-    try {
-      btn.disabled = true;
-      btn.classList.add("cooldown");
-      setActiveFormatButton(btn);
-
+    withButtonCooldown(btn, async () => {
       const text = (ta.value || "").trim();
       if (!text) {
         showMessage("Nothing to copy yet.");
         return;
       }
 
-      await navigator.clipboard.writeText(text);
-
-      if (id === "output") {
-        showMessage("Copied post.");
-      } else if (id === "hashtagsOutput") {
-        showMessage("Copied hashtags.");
-      } else {
-        showMessage("Copied CTA.");
-      }
-    } catch (error) {
-      showMessage("Failed to copy.");
-    } finally {
-      setTimeout(() => {
-        btn.classList.remove("cooldown");
-        btn.disabled = false;
-        if (activeFormatButton === btn) {
-          btn.classList.remove("active");
-          activeFormatButton = null;
+      try {
+        await navigator.clipboard.writeText(text);
+        if (id === "output") {
+          showMessage("Copied post.");
+        } else if (id === "hashtagsOutput") {
+          showMessage("Copied hashtags.");
+        } else {
+          showMessage("Copied CTA.");
         }
-      }, COPY_COOLDOWN_MS);
-    }
+      } catch (error) {
+        showMessage("Failed to copy.");
+      }
+    });
   });
 });
 
 // "Copy All Texts" button
 if (copyAllBtn) {
-  copyAllBtn.addEventListener("click", async () => {
-    if (copyAllBtn.disabled) return;
-
-    try {
-      copyAllBtn.disabled = true;
-      copyAllBtn.classList.add("cooldown");
-      setActiveFormatButton(copyAllBtn);
-
-      // join generated post, hashtags, and CTA sections without stripping formatting
+  copyAllBtn.addEventListener("click", () => {
+    withButtonCooldown(copyAllBtn, async () => {
       const postText = (output?.value || "").trimEnd();
       const hashtagsText = (hashtagsOutput?.value || "").trimEnd();
       const ctaText = (ctaOutput?.value || "").trimEnd();
-      const combinedText = [postText, ctaText, hashtagsText].filter((s) => s.length > 0).join("\n\n");
+      const combinedText = [postText, ctaText, hashtagsText]
+        .filter((s) => s.length > 0)
+        .join("\n\n");
 
       if (!combinedText) {
         showMessage("Nothing to copy yet.");
         return;
       }
 
-      await navigator.clipboard.writeText(combinedText);
-      showMessage("Copied post, CTA, and hashtags.");
-    } catch (error) {
-      showMessage("Failed to copy.");
-    } finally {
-      setTimeout(() => {
-        copyAllBtn.classList.remove("cooldown");
-        copyAllBtn.disabled = false;
-        if (activeFormatButton === copyAllBtn) {
-          copyAllBtn.classList.remove("active");
-          activeFormatButton = null;
-        }
-      }, COPY_COOLDOWN_MS);
-    }
+      try {
+        await navigator.clipboard.writeText(combinedText);
+        showMessage("Copied post, CTA, and hashtags.");
+      } catch (error) {
+        showMessage("Failed to copy.");
+      }
+    });
   });
 }
 
@@ -1118,37 +1311,87 @@ if (insertBtn) {
 // =========================
 if (boldBtn) {
   boldBtn.addEventListener("click", () => {
-    applyEmphasis("bold", "Select text first.");
-    setActiveFormatButton(boldBtn);
+    withButtonCooldown(boldBtn, () => {
+      applyEmphasis("bold", "Select text first.");
+    });
   });
 }
 
 if (italicBtn) {
   italicBtn.addEventListener("click", () => {
-    applyEmphasis("italic", "Select text first.");
-    setActiveFormatButton(italicBtn);
+    withButtonCooldown(italicBtn, () => {
+      applyEmphasis("italic", "Select text first.");
+    });
   });
 }
 
 if (bulletBtn) {
   bulletBtn.addEventListener("click", () => {
-    const result = applyBulletPoints();
-    if (result?.toggledOff) {
-      deactivateFormatButton(bulletBtn);
-    } else {
-      setActiveFormatButton(bulletBtn);
-    }
+    withButtonCooldown(bulletBtn, () => {
+      applyBulletPoints();
+    });
   });
 }
 
 if (codeBtn) {
   codeBtn.addEventListener("click", () => {
-    applyCodeFence();
-    setActiveFormatButton(codeBtn);
+    withButtonCooldown(codeBtn, () => {
+      applyEmphasis("code", "Select text first.");
+    });
   });
 }
 
-// Auto-save when user types or edits the generated text
+if (clearFormatBtn) {
+  clearFormatBtn.addEventListener("click", () => {
+    withButtonCooldown(clearFormatBtn, () => {
+      applyClearFormatting();
+    });
+  });
+}
+
+// =========================
+// Keyboard shortcuts for text formatting
+// =========================
+function isFormatShortcutModifier(e) {
+  return e.ctrlKey || e.metaKey;
+}
+
+function handleFormatFieldKeydown(e) {
+  if (!isFormatShortcutModifier(e)) {
+    return;
+  }
+
+  const fields = [output, hashtagsOutput, ctaOutput].filter(Boolean);
+  if (!fields.includes(e.target)) {
+    return;
+  }
+
+  if (!window.LinkedInPostFormatter) {
+    return;
+  }
+
+  const key = e.key.toLowerCase();
+
+  if (key === "b") {
+    e.preventDefault();
+    boldBtn?.click();
+    return;
+  }
+
+  if (key === "i") {
+    e.preventDefault();
+    italicBtn?.click();
+    return;
+  }
+
+  if (key === "r") {
+    e.preventDefault();
+    clearFormatBtn?.click();
+    return;
+  }
+}
+
+// auto-save when user types or edits the generated text
 [output, hashtagsOutput, ctaOutput, promptInput].forEach(el => {
   if (el) {
     el.addEventListener("input", saveToLocal);
