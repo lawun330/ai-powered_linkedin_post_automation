@@ -567,7 +567,8 @@ async function googleSignupLogin(req, res, next) {
     if (!googleConfig) {
       return res.status(503).json({
         success: false,
-        message: "Google sign-in is not configured. Add server/google_auth.json with your OAuth client.",
+        message:
+          "Google sign-in is not configured. Add server/config/google_auth.json with your OAuth client.",
       });
     }
 

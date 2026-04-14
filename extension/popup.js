@@ -289,6 +289,10 @@ function setLoading(isLoading, text = "Generating post...") {
   }
 
   updateResendOtpButton();
+
+  document.querySelectorAll(".js-google-auth").forEach((btn) => {
+    btn.disabled = isLoading;
+  });
 }
 
 // =========================
@@ -739,57 +743,8 @@ if (signupBtn) {
 }
 
 // =========================
-// Login flow
-// After login, move to generator
+// OTP verification flow
 // =========================
-if (loginBtn) {
-  loginBtn.addEventListener("click", () => {
-    const email = loginEmail?.value.trim();
-    const password = loginPassword?.value.trim();
-
-    if (!email || !password) {
-      showMessage("Please enter your email and password.");
-      return;
-    }
-
-    setLoading(true);
-    showMessage("");
-
-    chrome.runtime.sendMessage(
-      {
-        type: "LOGIN",
-        payload: {
-          email,
-          password,
-        },
-      },
-      (response) => {
-        setLoading(false);
-
-        if (chrome.runtime.lastError) {
-          showMessage("Failed to communicate with extension background script.");
-          return;
-        }
-
-        if (handleApiError(response, "Login failed.")) {
-          const notVerified = String(response?.message || "")
-            .toLowerCase()
-            .includes("not verified");
-          if (notVerified && email) {
-            setPendingVerificationEmail(email);
-            clearOtpInputs();
-            showView(otpView);
-          }
-          return;
-        }
-
-        showMessage("Login successful.");
-        showView(generatorView);
-      }
-    );
-  });
-}
-
 if (verifyOtpBtn) {
   verifyOtpBtn.addEventListener("click", () => {
     const otp = getOtpCode();
@@ -884,7 +839,85 @@ if (resendOtpBtn) {
   });
 }
 
+// =========================
+// Login flow
+// After login, move to generator
+// =========================
+if (loginBtn) {
+  loginBtn.addEventListener("click", () => {
+    const email = loginEmail?.value.trim();
+    const password = loginPassword?.value.trim();
 
+    if (!email || !password) {
+      showMessage("Please enter your email and password.");
+      return;
+    }
+
+    setLoading(true);
+    showMessage("");
+
+    chrome.runtime.sendMessage(
+      {
+        type: "LOGIN",
+        payload: {
+          email,
+          password,
+        },
+      },
+      (response) => {
+        setLoading(false);
+
+        if (chrome.runtime.lastError) {
+          showMessage("Failed to communicate with extension background script.");
+          return;
+        }
+
+        if (handleApiError(response, "Login failed.")) {
+          const notVerified = String(response?.message || "")
+            .toLowerCase()
+            .includes("not verified");
+          if (notVerified && email) {
+            setPendingVerificationEmail(email);
+            clearOtpInputs();
+            showView(otpView);
+          }
+          return;
+        }
+
+        showMessage("Login successful.");
+        showView(generatorView);
+      }
+    );
+  });
+}
+
+document.querySelectorAll(".js-google-auth").forEach((btn) => {
+  btn.addEventListener("click", () => {
+    setLoading(true, "Signing in with Google...");
+    showMessage("");
+
+    chrome.runtime.sendMessage({ type: "GOOGLE_AUTH" }, (response) => {
+      setLoading(false, "Generating post...");
+
+      if (chrome.runtime.lastError) {
+        showMessage("Failed to communicate with extension background script.");
+        return;
+      }
+
+      if (handleApiError(response, "Google sign-in failed.")) {
+        return;
+      }
+
+      showMessage(response?.message || "Signed in with Google.");
+      showView(generatorView);
+      loadFromLocal();
+    });
+  });
+});
+
+// =========================
+// Logout flow
+// =========================
 if (logoutBtn) {
   logoutBtn.addEventListener("click", () => {
     const confirmed = window.confirm("Are you sure you want to logout?");
@@ -927,6 +960,9 @@ if (logoutBtn) {
   });
 }
 
+// =========================
+// Forgot/Reset password flow
+// =========================
 if (sendResetCodeBtn) {
   sendResetCodeBtn.addEventListener("click", () => {
     const email = forgotPasswordEmail?.value.trim();

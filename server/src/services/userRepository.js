@@ -1,18 +1,39 @@
 const pool = require("../config/database");
 
-async function createUser({ fullName, email, passwordHash }) {
+async function createUser({
+  fullName,
+  email,
+  passwordHash,
+  authProvider = "local", // can be local or google
+  profileImageUrl = null,
+}) {
+  // if local: default to pending_verification, else google: active
+  const accountStatus = authProvider === "local" ? "pending_verification" : "active";
+  // if local: default to false, else google: true
+  const emailVerified = authProvider === "local" ? false : true;
+
   const query = `
     INSERT INTO users (
       full_name,
       email,
       password_hash,
       account_status,
-      email_verified
+      email_verified,
+      auth_provider,
+      profile_image_url
     )
-    VALUES ($1, $2, $3, 'pending_verification', FALSE)
-    RETURNING id, full_name, email, account_status, email_verified, created_at
+    VALUES ($1, $2, $3, $4, $5, $6, $7)
+    RETURNING id, full_name, email, account_status, email_verified, auth_provider, created_at
   `;
-  const values = [fullName, email, passwordHash];
+  const values = [
+    fullName,
+    email,
+    passwordHash,
+    accountStatus,
+    emailVerified,
+    authProvider,
+    profileImageUrl,
+  ];
   const result = await pool.query(query, values);
   return result.rows[0];
 }
@@ -166,7 +187,7 @@ async function markUserEmailVerified(userId) {
 
   return result.rows[0] || null;
 }
-  
+
 async function savePasswordResetCode({ userId, resetCodeHash, expiresAt }) {
   const query = `
     UPDATE users
