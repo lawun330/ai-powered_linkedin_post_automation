@@ -23,6 +23,12 @@ function validateSignup(data) {
     errors.password = "Password must be at least 8 characters";
   }
 
+  if (!data.confirm_password || typeof data.confirm_password !== "string") {
+    errors.confirm_password = "Password confirmation is required";
+  } else if (data.password !== data.confirm_password) {
+    errors.confirm_password = "Passwords do not match";
+  }
+
   return {
     isValid: Object.keys(errors).length === 0,
     errors,

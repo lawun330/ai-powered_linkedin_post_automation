@@ -123,9 +123,9 @@ function generatePasswordResetCode() {
 // ------
 async function signup(req, res, next) {
   try {
-    const { full_name, email, password } = req.body;
+    const { full_name, email, password, confirm_password } = req.body;
 
-    const { isValid, errors } = validateSignup({ full_name, email, password });
+    const { isValid, errors } = validateSignup({ full_name, email, password, confirm_password });
     if (!isValid) {
       return res.status(400).json({ success: false, message: "Validation failed", errors });
     }

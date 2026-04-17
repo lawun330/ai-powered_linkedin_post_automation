@@ -66,10 +66,12 @@ const resetPasswordBtn = document.getElementById("resetPasswordBtn");
 const signupName = document.getElementById("signupName");
 const signupEmail = document.getElementById("signupEmail");
 const signupPassword = document.getElementById("signupPassword");
+const signupConfirmPassword = document.getElementById("signupConfirmPassword");
 
 const loginEmail = document.getElementById("loginEmail");
 const loginPassword = document.getElementById("loginPassword");
 const toggleSignupPassword = document.getElementById("toggleSignupPassword");
+const toggleSignupConfirmPassword = document.getElementById("toggleSignupConfirmPassword");
 const toggleLoginPassword = document.getElementById("toggleLoginPassword");
 const otpEmailHint = document.getElementById("otpEmailHint");
 const otpInputs = Array.from(document.querySelectorAll(".otp-digit"));
@@ -83,8 +85,10 @@ const confirmNewPassword = document.getElementById("confirmNewPassword");
 const toggleNewPassword = document.getElementById("toggleNewPassword");
 const toggleConfirmNewPassword = document.getElementById("toggleConfirmNewPassword");
 
-
-
+// =======
+// Helpers
+// =======
+// ==== auth helpers ====
 function setupPasswordToggle(toggleBtn, inputEl) {
   if (!toggleBtn || !inputEl) return;
 
@@ -103,6 +107,7 @@ function setupPasswordToggle(toggleBtn, inputEl) {
 }
 
 setupPasswordToggle(toggleSignupPassword, signupPassword);
+setupPasswordToggle(toggleSignupConfirmPassword, signupConfirmPassword);
 setupPasswordToggle(toggleLoginPassword, loginPassword);
 setupPasswordToggle(toggleNewPassword, newPassword);
 setupPasswordToggle(toggleConfirmNewPassword, confirmNewPassword);
@@ -211,19 +216,25 @@ function setupOtpInputs() {
 setupOtpInputs();
 updateResendOtpButton();
 
-let lastFocusedFormatField = output;
+// ==== ui helpers ====
+function hideAllViews() {
+  if (authChoiceView) authChoiceView.classList.add("hidden");
+  if (signupView) signupView.classList.add("hidden");
+  if (loginView) loginView.classList.add("hidden");
+  if (otpView) otpView.classList.add("hidden");
+  if (generatorView) generatorView.classList.add("hidden");
+  if (forgotPasswordView) forgotPasswordView.classList.add("hidden");
+  if (resetPasswordView) resetPasswordView.classList.add("hidden");
+}
 
-[output, hashtagsOutput, ctaOutput].forEach((el) => {
-  if (!el) return;
-  el.addEventListener("focusin", () => {
-    lastFocusedFormatField = el;
-  });
-  el.addEventListener("keydown", handleFormatFieldKeydown);
-});
+function showView(view) {
+  hideAllViews();
+  if (view) {
+    view.classList.remove("hidden");
+  }
+  showMessage("");
+}
 
-// =========================
-// Helpers
-// =========================
 function showMessage(message) {
   if (!messageBox) return;
   messageBox.textContent = message;
@@ -295,59 +306,7 @@ function setLoading(isLoading, text = "Generating post...") {
   });
 }
 
-// =========================
-// Save to local storage
-// =========================
-function saveToLocal() {
-  const backup = {
-    post: output?.value || "",
-    hashtags: hashtagsOutput?.value || "",
-    cta: ctaOutput?.value || "",
-    prompt: promptInput?.value || ""
-  };
-  localStorage.setItem("generatedPost", JSON.stringify(backup));
-}
-
-// ===========================
-// Load from local storage
-// ===========================
-function loadFromLocal() {
-  const saved = localStorage.getItem("generatedPost");
-  if (!saved) return;
-
-  try {
-    const data = JSON.parse(saved);
-    if (output) output.value = data.post || "";
-    if (hashtagsOutput) hashtagsOutput.value = data.hashtags || "";
-    if (ctaOutput) ctaOutput.value = data.cta || "";
-    if (promptInput) promptInput.value = data.prompt || "";
-  } catch (e) {
-    console.error("Failed to parse local storage", e);
-  }
-}
-
-function clearLocalSessionData() {
-  localStorage.removeItem("generatedPost");
-}
-
-function hideAllViews() {
-  if (authChoiceView) authChoiceView.classList.add("hidden");
-  if (signupView) signupView.classList.add("hidden");
-  if (loginView) loginView.classList.add("hidden");
-  if (otpView) otpView.classList.add("hidden");
-  if (generatorView) generatorView.classList.add("hidden");
-  if (forgotPasswordView) forgotPasswordView.classList.add("hidden");
-  if (resetPasswordView) resetPasswordView.classList.add("hidden");
-}
-
-function showView(view) {
-  hideAllViews();
-  if (view) {
-    view.classList.remove("hidden");
-  }
-  showMessage("");
-}
-
+// ==== api helpers ====
 function handleApiError(response, fallbackMessage) {
   if (!response) {
     showMessage(fallbackMessage);
@@ -368,6 +327,7 @@ function handleApiError(response, fallbackMessage) {
   return false;
 }
 
+// ==== generator helpers ====
 function formatDraftAsTxt(payload) {
   const tagsStr = Array.isArray(payload.hashtags)
     ? payload.hashtags.join(" ")
@@ -414,9 +374,17 @@ function downloadDraftTxt(payload) {
   );
 }
 
-// =========================
-// Text formatting
-// =========================
+// ==== text formatting helpers ====
+let lastFocusedFormatField = output;
+
+[output, hashtagsOutput, ctaOutput].forEach((el) => {
+  if (!el) return;
+  el.addEventListener("focusin", () => {
+    lastFocusedFormatField = el;
+  });
+  el.addEventListener("keydown", handleFormatFieldKeydown);
+});
+
 function getFormattingTarget() {
   const fields = [output, hashtagsOutput, ctaOutput].filter(Boolean);
   const active = document.activeElement;
@@ -555,9 +523,6 @@ function applyListFormat(kind) {
   return result;
 }
 
-// =========================
-// Numbered list dropdown
-// =========================
 function closeListMenu() {
   if (listMenu) {
     listMenu.classList.add("hidden");
@@ -593,6 +558,36 @@ if (listMenuBtn && listMenu) {
   document.addEventListener("click", () => {
     closeListMenu();
   });
+}
+
+// ==== storage helpers ====
+function saveToLocal() {
+  const backup = {
+    post: output?.value || "",
+    hashtags: hashtagsOutput?.value || "",
+    cta: ctaOutput?.value || "",
+    prompt: promptInput?.value || ""
+  };
+  localStorage.setItem("generatedPost", JSON.stringify(backup));
+}
+
+function loadFromLocal() {
+  const saved = localStorage.getItem("generatedPost");
+  if (!saved) return;
+
+  try {
+    const data = JSON.parse(saved);
+    if (output) output.value = data.post || "";
+    if (hashtagsOutput) hashtagsOutput.value = data.hashtags || "";
+    if (ctaOutput) ctaOutput.value = data.cta || "";
+    if (promptInput) promptInput.value = data.prompt || "";
+  } catch (e) {
+    console.error("Failed to parse local storage", e);
+  }
+}
+
+function clearLocalSessionData() {
+  localStorage.removeItem("generatedPost");
 }
 
 // =========================
@@ -694,9 +689,15 @@ if (signupBtn) {
     const fullName = signupName?.value.trim();
     const email = signupEmail?.value.trim();
     const password = signupPassword?.value.trim();
+    const confirmPassword = signupConfirmPassword?.value.trim();
 
-    if (!fullName || !email || !password) {
+    if (!fullName || !email || !password || !confirmPassword) {
       showMessage("Please fill in all signup fields.");
+      return;
+    }
+
+    if (password !== confirmPassword) {
+      showMessage("Passwords do not match.");
       return;
     }
 
@@ -710,6 +711,7 @@ if (signupBtn) {
           full_name: fullName,
           email,
           password,
+          confirm_password: confirmPassword,
         },
       },
       (response) => {
@@ -945,6 +947,7 @@ if (logoutBtn) {
 
       if (signupEmail) signupEmail.value = "";
       if (signupPassword) signupPassword.value = "";
+      if (signupConfirmPassword) signupConfirmPassword.value = "";
       if (signupName) signupName.value = "";
       if (loginEmail) loginEmail.value = "";
       if (loginPassword) loginPassword.value = "";
@@ -1427,6 +1430,9 @@ function handleFormatFieldKeydown(e) {
   }
 }
 
+// =======
+// Storage
+// =======
 // auto-save when user types or edits the generated text
 [output, hashtagsOutput, ctaOutput, promptInput].forEach(el => {
   if (el) {
