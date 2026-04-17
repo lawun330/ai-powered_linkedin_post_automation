@@ -792,7 +792,9 @@ if (verifyOtpBtn) {
         }
 
         showMessage("Email verified. You are now logged in.");
-        showView(generatorView);
+        setTimeout(() => {
+          showView(generatorView);
+        }, 1500);
       }
     );
   });
