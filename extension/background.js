@@ -625,11 +625,36 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   }
 
   if (message.type === "LOGOUT") {
-    chrome.storage.local.remove(["authToken", "currentUser"], () => {
-      sendResponse({
-        success: true,
-        message: "Logged out successfully.",
-      });
+    chrome.storage.local.get(["authToken"], (result) => {
+      const token = result.authToken;
+
+      const finish = () => {
+        chrome.storage.local.remove(["authToken", "currentUser"], () => {
+          sendResponse({
+            success: true,
+            message: "Logged out successfully.",
+          });
+        });
+      };
+
+      if (!token) {
+        finish();
+        return;
+      }
+
+      fetch("http://localhost:5000/api/auth/logout", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+      })
+        .catch((err) => {
+          console.error("Logout API error:", err);
+        })
+        .finally(() => {
+          finish();
+        });
     });
 
     return true;

@@ -23,7 +23,7 @@ async function createUser({
       profile_image_url
     )
     VALUES ($1, $2, $3, $4, $5, $6, $7)
-    RETURNING id, full_name, email, account_status, email_verified, auth_provider, created_at
+    RETURNING id, full_name, email, account_status, email_verified, auth_provider, created_at, token_version
   `;
   const values = [
     fullName,
@@ -41,7 +41,7 @@ async function createUser({
 async function findUserByEmail(email) {
   const query = `
     SELECT id, full_name, email, password_hash, auth_provider, account_status, email_verified, created_at,
-           password_reset_code_hash, password_reset_expires_at
+           password_reset_code_hash, password_reset_expires_at, token_version
     FROM users
     WHERE email = $1
     LIMIT 1
@@ -53,7 +53,7 @@ async function findUserByEmail(email) {
 async function findUserById(id) {
   const query = `
     SELECT id, full_name, email, profile_image_url, job_title, industry, linkedin_profile_url,
-           account_status, email_verified, created_at, updated_at
+           account_status, email_verified, created_at, updated_at, token_version
     FROM users
     WHERE id = $1
     LIMIT 1
@@ -183,12 +183,36 @@ async function markUserEmailVerified(userId) {
           END,
           updated_at = NOW()
       WHERE id = $1
-      RETURNING id, full_name, email, account_status, email_verified, created_at
+      RETURNING id, full_name, email, account_status, email_verified, created_at, token_version
     `,
     [userId]
   );
 
   return result.rows[0] || null;
+}
+
+async function getTokenVersionByUserId(userId) {
+  const result = await pool.query(
+    `
+    SELECT token_version FROM users WHERE id = $1 LIMIT 1
+    `,
+    [userId]
+  );
+  return Number(result.rows[0]?.token_version) || null;
+}
+
+async function incrementUserTokenVersion(userId) {
+  const result = await pool.query(
+    `
+      UPDATE users
+      SET token_version = token_version + 1,
+          updated_at = NOW()
+      WHERE id = $1
+      RETURNING token_version
+    `,
+    [userId]
+  );
+  return Number(result.rows[0]?.token_version) || null;
 }
 
 async function savePasswordResetCode({ userId, resetCodeHash, expiresAt }) {
@@ -241,6 +265,8 @@ module.exports = {
   createUser,
   findUserByEmail,
   findUserById,
+  getTokenVersionByUserId,
+  incrementUserTokenVersion,
   updateLastLoginAt,
   initUserPreferences,
   createSession,

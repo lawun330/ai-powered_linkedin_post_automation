@@ -107,6 +107,12 @@ button.auth-cta-btn:focus-visible {
   outline-offset: 2px;
 }
 
+button.auth-cta-btn:disabled,
+button.auth-cta-btn.cooldown {
+  opacity: 0.65;
+  cursor: not-allowed;
+}
+
 .secondary-btn {
   background: #ffffff;
   color: #0a66c2;
