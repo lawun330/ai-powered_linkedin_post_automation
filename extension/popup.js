@@ -1501,9 +1501,9 @@ if (clearFormatBtn) {
   });
 }
 
-// =========================
+// ======================================
 // Keyboard shortcuts for text formatting
-// =========================
+// ======================================
 function isFormatShortcutModifier(e) {
   return e.ctrlKey || e.metaKey;
 }
@@ -1541,6 +1541,23 @@ function handleFormatFieldKeydown(e) {
     clearFormatBtn?.click();
     return;
   }
+}
+
+// ==========
+// Side panel
+// ==========
+const pinButton = document.getElementById("pinButton");
+if (pinButton && chrome.sidePanel?.open) {
+  pinButton.addEventListener("click", async () => {
+    try {
+      const currentWindow = await chrome.windows.getCurrent();
+      await chrome.sidePanel.open({ windowId: currentWindow.id });
+      window.close();
+    } catch (e) {
+      console.error("side panel open failed:", e);
+      showMessage("Could not open side panel. Use Chrome 114+.");
+    }
+  });
 }
 
 // =======

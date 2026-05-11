@@ -34,6 +34,18 @@ function sendAuthenticatedRequest({ url, method = "GET", token, body = null, sen
     });
 }
 
+// ----------------------
+// Extension popup helper
+// ----------------------
+function ensurePopupOpensOnToolbarClick() {
+  if (chrome.sidePanel?.setPanelBehavior) {
+    chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: false }).catch(() => {});
+  }
+}
+
+chrome.runtime.onInstalled.addListener(ensurePopupOpensOnToolbarClick);
+chrome.runtime.onStartup.addListener(ensurePopupOpensOnToolbarClick);
+
 // ---------------------
 // Linkedin post helpers
 // ---------------------
