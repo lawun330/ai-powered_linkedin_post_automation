@@ -33,6 +33,7 @@ const {
   findUserByEmailAndResetCode,
   updateUserPassword,
   clearPasswordResetCode,
+  incrementUserTokenVersion,
 } = require("../services/userRepository");
 const { sendPasswordResetCodeEmail } = require("../services/emailService");
 const { logSignupEvent, logLoginEvent } = require("../services/eventService");
@@ -42,11 +43,13 @@ const { logSignupEvent, logLoginEvent } = require("../services/eventService");
 // ---------------
 // Helper to generate JWT access token
 function signToken(user) {
-  return jwt.sign(
-    { id: user.id, full_name: user.full_name, email: user.email },
-    env.jwtSecret,
-    { expiresIn: "15m" } // Access tokens should be short-lived since you now have sessions/refresh tokens
-  );
+  const dbTokenVersion = Number(user.token_version);
+  const safeTokenVersion =
+    Number.isFinite(dbTokenVersion) && dbTokenVersion >= 1 ? dbTokenVersion : 1; // valid token version starts at 1
+  return jwt.sign({ id: user.id, tokenVersion: safeTokenVersion }, env.jwtSecret, {
+    expiresIn: "15m", // Access tokens should be short-lived since there are sessions/refresh tokens
+    algorithm: "HS256",
+  });
 }
 
 // Helper to generate a random Refresh Token
@@ -466,7 +469,7 @@ async function forgotPassword(req, res, next) {
     const user = await findUserByEmail(normalizedEmail);
 
     // Do not reveal whether the email exists or not
-    if (!user) {
+    if (!user || user.auth_provider === "google") {
       return res.status(200).json({
         success: true,
         message: "If an account with that email exists, a reset code has been sent.",
@@ -550,6 +553,7 @@ async function resetPassword(req, res, next) {
     });
 
     await clearPasswordResetCode(user.id);
+    await incrementUserTokenVersion(user.id);
 
     return res.status(200).json({
       success: true,
@@ -676,6 +680,21 @@ async function googleSignupLogin(req, res, next) {
 }
 
 // ------
+// Logout
+// ------
+async function logout(req, res, next) {
+  try {
+    await incrementUserTokenVersion(req.user.id);
+    return res.status(200).json({
+      success: true,
+      message: "Logged out successfully.",
+    });
+  } catch (err) {
+    next(err);
+  }
+}
+
+// ------
 // Me
 // ------
 async function me(req, res, next) {
@@ -685,7 +704,9 @@ async function me(req, res, next) {
       return res.status(404).json({ success: false, message: "User not found" });
     }
 
-    return res.status(200).json({ success: true, data: { user } });
+    const userPublic = { ...user };
+    delete userPublic.token_version;
+    return res.status(200).json({ success: true, data: { user: userPublic } });
   } catch (err) {
     next(err);
   }
@@ -699,5 +720,6 @@ module.exports = {
   forgotPassword,
   resetPassword,
   googleSignupLogin,
+  logout,
   me,
 };

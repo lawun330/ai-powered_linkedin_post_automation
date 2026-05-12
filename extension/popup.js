@@ -73,8 +73,12 @@ const loginPassword = document.getElementById("loginPassword");
 const toggleSignupPassword = document.getElementById("toggleSignupPassword");
 const toggleSignupConfirmPassword = document.getElementById("toggleSignupConfirmPassword");
 const toggleLoginPassword = document.getElementById("toggleLoginPassword");
-const otpEmailHint = document.getElementById("otpEmailHint");
-const otpInputs = Array.from(document.querySelectorAll(".otp-digit"));
+
+const signupOtpEmailHint = document.getElementById("signupOtpEmailHint");
+const resetPasswordOtpEmailHint = document.getElementById("resetPasswordOtpEmailHint");
+const signupOtpInputs = Array.from(document.querySelectorAll("#signupOtpInputs .otp-digit"));
+const resetPasswordOtpInputs = Array.from(document.querySelectorAll("#resetPasswordOtpInputs .otp-digit"));
+
 const DEFAULT_RESEND_COOLDOWN_SECONDS = 30;
 let RESEND_COOLDOWN_SECONDS = DEFAULT_RESEND_COOLDOWN_SECONDS;
 
@@ -103,8 +107,6 @@ function syncResendCooldownSeconds(responseData) {
   return RESEND_COOLDOWN_SECONDS;
 }
 const forgotPasswordEmail = document.getElementById("forgotPasswordEmail");
-const resetPasswordEmail = document.getElementById("resetPasswordEmail");
-const resetPasswordCode = document.getElementById("resetPasswordCode");
 const newPassword = document.getElementById("newPassword");
 const confirmNewPassword = document.getElementById("confirmNewPassword");
 const toggleNewPassword = document.getElementById("toggleNewPassword");
@@ -176,45 +178,52 @@ function startResendCooldown(seconds = RESEND_COOLDOWN_SECONDS) {
   }, 1000);
 }
 
+// ==== email hint helpers for signup OTP and reset password OTP ====
+function setEmailHint(emailHint, email) {
+  if (!emailHint) {
+    return;
+  }
+  emailHint.textContent = email?.value?.trim() || email || "your email";
+}
+
 function setPendingVerificationEmail(email) {
   pendingVerificationEmail = email || "";
-  if (otpEmailHint) {
-    otpEmailHint.textContent = pendingVerificationEmail || "your email";
-  }
+  setEmailHint(signupOtpEmailHint, pendingVerificationEmail);
 }
 
-function getOtpCode() {
-  return otpInputs.map((input) => input.value).join("");
+// ==== otp input helpers shared between signup and reset ====
+function getOtpInputs(inputs) {
+  return inputs.map((input) => input.value).join("");
 }
 
-function clearOtpInputs() {
-  otpInputs.forEach((input) => {
+function clearOtpInputs(inputs) {
+  inputs.forEach((input) => {
     input.value = "";
   });
 
-  if (otpInputs[0]) {
-    otpInputs[0].focus();
+  if (inputs[0]) {
+    inputs[0].focus();
   }
 }
 
-function setupOtpInputs() {
-  if (!otpInputs.length) {
+function setupOtpInputs(inputs) {
+  if (!inputs.length) {
     return;
   }
 
-  otpInputs.forEach((input, index) => {
+  inputs.forEach((input, index) => {
     input.addEventListener("input", (event) => {
       const value = event.target.value.replace(/\D/g, "");
       event.target.value = value.slice(-1);
 
-      if (event.target.value && index < otpInputs.length - 1) {
-        otpInputs[index + 1].focus();
+      if (event.target.value && index < inputs.length - 1) {
+        inputs[index + 1].focus();
       }
     });
 
     input.addEventListener("keydown", (event) => {
       if (event.key === "Backspace" && !input.value && index > 0) {
-        otpInputs[index - 1].focus();
+        inputs[index - 1].focus();
       }
     });
 
@@ -225,20 +234,21 @@ function setupOtpInputs() {
       }
 
       event.preventDefault();
-      const chars = pasted.slice(0, otpInputs.length).split("");
+      const chars = pasted.slice(0, inputs.length).split("");
       chars.forEach((ch, i) => {
-        if (otpInputs[i]) {
-          otpInputs[i].value = ch;
+        if (inputs[i]) {
+          inputs[i].value = ch;
         }
       });
 
-      const next = Math.min(chars.length, otpInputs.length - 1);
-      otpInputs[next]?.focus();
+      const next = Math.min(chars.length, inputs.length - 1);
+      inputs[next]?.focus();
     });
   });
 }
 
-setupOtpInputs();
+setupOtpInputs(signupOtpInputs);
+setupOtpInputs(resetPasswordOtpInputs);
 updateResendOtpButton();
 
 // ==== ui helpers ====
@@ -268,7 +278,7 @@ function showMessage(message) {
 const BUTTON_COOLDOWN_MS = 1000;
 
 // briefly disabled certain buttons after click to prevent spamming during cooldown period
-function withButtonCooldown(btn, action) {
+function withButtonCooldown(btn, action, onRelease = null) {
   if (btn && btn.disabled) {
     return;
   }
@@ -279,7 +289,11 @@ function withButtonCooldown(btn, action) {
     }
     setTimeout(() => {
       btn.classList.remove("cooldown", "active");
-      btn.disabled = false;
+      if (typeof onRelease === "function") {
+        onRelease();
+      } else {
+        btn.disabled = false;
+      }
     }, BUTTON_COOLDOWN_MS);
   };
 
@@ -293,7 +307,11 @@ function withButtonCooldown(btn, action) {
     .then(armRelease, armRelease);
 }
 
-function setLoading(isLoading, text = "Generating post...") {
+function setLoading(
+  isLoading,
+  text = "Generating post...",
+  { disableAuth = true, disableGoogle = true } = {}
+) {
   uiLoading = isLoading;
 
   if (loading) {
@@ -312,23 +330,27 @@ function setLoading(isLoading, text = "Generating post...") {
     saveDraftBtn.disabled = isLoading;
   }
 
-  if (signupBtn) {
-    signupBtn.disabled = isLoading;
-  }
+  if (disableAuth) {
+    if (signupBtn) {
+      signupBtn.disabled = isLoading;
+    }
 
-  if (loginBtn) {
-    loginBtn.disabled = isLoading;
-  }
+    if (loginBtn) {
+      loginBtn.disabled = isLoading;
+    }
 
-  if (verifyOtpBtn) {
-    verifyOtpBtn.disabled = isLoading;
+    if (verifyOtpBtn) {
+      verifyOtpBtn.disabled = isLoading;
+    }
   }
 
   updateResendOtpButton();
 
-  document.querySelectorAll(".js-google-auth").forEach((btn) => {
-    btn.disabled = isLoading;
-  });
+  if (disableGoogle) {
+    document.querySelectorAll(".js-google-auth").forEach((btn) => {
+      btn.disabled = isLoading;
+    });
+  }
 }
 
 // ==== api helpers ====
@@ -680,6 +702,10 @@ if (goBackToSignupFromOtp) {
     
 if (goToForgotPassword) {
   goToForgotPassword.addEventListener("click", () => {
+    const fromLogin = loginEmail?.value.trim() || "";
+    if (forgotPasswordEmail && fromLogin) {
+      forgotPasswordEmail.value = fromLogin;
+    }
     showView(forgotPasswordView);
   });
 }
@@ -692,9 +718,11 @@ if (backFromForgotPassword) {
 
 if (goToResetPasswordView) {
   goToResetPasswordView.addEventListener("click", () => {
-    if (forgotPasswordEmail?.value.trim() && resetPasswordEmail) {
-      resetPasswordEmail.value = forgotPasswordEmail.value.trim();
+    if (!forgotPasswordEmail.value.trim() || !forgotPasswordEmail.checkValidity()) {
+      showMessage("Please enter your email.");
+      return;
     }
+    setEmailHint(resetPasswordOtpEmailHint, forgotPasswordEmail);
     showView(resetPasswordView);
   });
 }
@@ -711,61 +739,68 @@ if (backFromResetPassword) {
 // =========================
 if (signupBtn) {
   signupBtn.addEventListener("click", () => {
-    const fullName = signupName?.value.trim();
-    const email = signupEmail?.value.trim();
-    const password = signupPassword?.value.trim();
-    const confirmPassword = signupConfirmPassword?.value.trim();
+    withButtonCooldown(signupBtn, () => {
+      const fullName = signupName?.value.trim();
+      const email = signupEmail?.value.trim();
+      const password = signupPassword?.value.trim();
+      const confirmPassword = signupConfirmPassword?.value.trim();
 
-    if (!fullName || !email || !password || !confirmPassword) {
-      showMessage("Please fill in all signup fields.");
-      return;
-    }
-
-    if (password !== confirmPassword) {
-      showMessage("Passwords do not match.");
-      return;
-    }
-
-    setLoading(true);
-    showMessage("");
-
-    chrome.runtime.sendMessage(
-      {
-        type: "SIGNUP",
-        payload: {
-          full_name: fullName,
-          email,
-          password,
-          confirm_password: confirmPassword,
-        },
-      },
-      (response) => {
-        setLoading(false);
-
-        if (chrome.runtime.lastError) {
-          showMessage("Failed to communicate with extension background script.");
-          return;
-        }
-
-        if (handleApiError(response, "Signup failed.")) {
-          const unverifiedExists = String(response?.message || "")
-            .toLowerCase()
-            .includes("not verified");
-          if (unverifiedExists && email) {
-            setPendingVerificationEmail(email);
-            clearOtpInputs();
-            showView(otpView);
-          }
-          return;
-        }
-
-        setPendingVerificationEmail(email);
-        clearOtpInputs();
-        startResendCooldown();
-        showView(otpView);
-        showMessage("Account created. Enter the OTP sent to your email.");
+      if (!fullName || !email || !password || !confirmPassword) {
+        showMessage("Please fill in all signup fields.");
+        return;
       }
-    );
+
+      if (password !== confirmPassword) {
+        showMessage("Passwords do not match.");
+        return;
+      }
+
+      setLoading(true);
+      showMessage("");
+
+      return new Promise((resolve) => {
+        chrome.runtime.sendMessage(
+          {
+            type: "SIGNUP",
+            payload: {
+              full_name: fullName,
+              email,
+              password,
+              confirm_password: confirmPassword,
+            },
+          },
+          (response) => {
+            setLoading(false);
+
+            if (chrome.runtime.lastError) {
+              showMessage("Failed to communicate with extension background script.");
+              resolve();
+              return;
+            }
+
+            if (handleApiError(response, "Signup failed.")) {
+              const unverifiedExists = String(response?.message || "")
+                .toLowerCase()
+                .includes("not verified");
+              if (unverifiedExists && email) {
+                setPendingVerificationEmail(email);
+                clearOtpInputs(signupOtpInputs);
+                showView(otpView);
+              }
+              resolve();
+              return;
+            }
+
+            setPendingVerificationEmail(email);
+            clearOtpInputs(signupOtpInputs);
+            startResendCooldown();
+            showView(otpView);
+            showMessage("Account created. Enter the OTP sent to your email.");
+            resolve();
+          }
+        );
+      });
+    });
   });
 }
 
@@ -774,96 +809,114 @@ if (signupBtn) {
 // =========================
 if (verifyOtpBtn) {
   verifyOtpBtn.addEventListener("click", () => {
-    const otp = getOtpCode();
-    const email = (
-      pendingVerificationEmail ||
-      signupEmail?.value ||
-      loginEmail?.value ||
-      ""
-    ).trim();
+    withButtonCooldown(verifyOtpBtn, () => {
+      const otp = getOtpInputs(signupOtpInputs);
+      const email = (
+        pendingVerificationEmail ||
+        signupEmail?.value ||
+        loginEmail?.value ||
+        ""
+      ).trim();
 
-    if (!email) {
-      showMessage("Enter your email first by signing up or logging in.");
-      showView(loginView);
-      return;
-    }
-
-    if (!/^\d{6}$/.test(otp)) {
-      showMessage("Please enter the 6-digit OTP code.");
-      return;
-    }
-
-    setLoading(true);
-    showMessage("");
-
-    chrome.runtime.sendMessage(
-      {
-        type: "VERIFY_EMAIL_OTP",
-        payload: {
-          email,
-          otp,
-        },
-      },
-      (response) => {
-        setLoading(false);
-
-        if (chrome.runtime.lastError) {
-          showMessage("Failed to communicate with extension background script.");
-          return;
-        }
-
-        if (handleApiError(response, "OTP verification failed.")) {
-          return;
-        }
-
-        showMessage("Email verified. You are now logged in.");
-        setTimeout(() => {
-          showView(generatorView);
-        }, 1500);
+      if (!email) {
+        showMessage("Enter your email first by signing up or logging in.");
+        showView(loginView);
+        return;
       }
-    );
+
+      if (!/^\d{6}$/.test(otp)) {
+        showMessage("Please enter the 6-digit OTP code.");
+        return;
+      }
+
+      setLoading(true);
+      showMessage("");
+
+      return new Promise((resolve) => {
+        chrome.runtime.sendMessage(
+          {
+            type: "VERIFY_EMAIL_OTP",
+            payload: {
+              email,
+              otp,
+            },
+          },
+          (response) => {
+            setLoading(false);
+
+            if (chrome.runtime.lastError) {
+              showMessage("Failed to communicate with extension background script.");
+              resolve();
+              return;
+            }
+
+            if (handleApiError(response, "OTP verification failed.")) {
+              resolve();
+              return;
+            }
+
+            showMessage("Email verified. You are now logged in.");
+            setTimeout(() => {
+              showView(generatorView);
+            }, 1500);
+            resolve();
+          }
+        );
+      });
+    });
   });
 }
 
 if (resendOtpBtn) {
   resendOtpBtn.addEventListener("click", () => {
-    const email = (
-      pendingVerificationEmail ||
-      signupEmail?.value ||
-      loginEmail?.value ||
-      ""
-    ).trim();
+    withButtonCooldown(
+      resendOtpBtn,
+      () => {
+        const email = (
+          pendingVerificationEmail ||
+          signupEmail?.value ||
+          loginEmail?.value ||
+          ""
+        ).trim();
 
-    if (!email) {
-      showMessage("Email is required to resend OTP.");
-      return;
-    }
+        if (!email) {
+          showMessage("Email is required to resend OTP.");
+          return;
+        }
 
-    setLoading(true);
-    showMessage("");
+        setLoading(true);
+        showMessage("");
 
-    chrome.runtime.sendMessage(
-      {
-        type: "RESEND_EMAIL_OTP",
-        payload: {
-          email,
-        },
+        return new Promise((resolve) => {
+          chrome.runtime.sendMessage(
+            {
+              type: "RESEND_EMAIL_OTP",
+              payload: {
+                email,
+              },
+            },
+            (response) => {
+              setLoading(false);
+
+              if (chrome.runtime.lastError) {
+                showMessage("Failed to communicate with extension background script.");
+                resolve();
+                return;
+              }
+
+              if (handleApiError(response, "Failed to resend OTP.")) {
+                resolve();
+                return;
+              }
+
+              startResendCooldown();
+              showMessage("A new OTP has been sent to your email.");
+              resolve();
+            }
+          );
+        });
       },
-      (response) => {
-        setLoading(false);
-
-        if (chrome.runtime.lastError) {
-          showMessage("Failed to communicate with extension background script.");
-          return;
-        }
-
-        if (handleApiError(response, "Failed to resend OTP.")) {
-          return;
-        }
-
-        startResendCooldown();
-        showMessage("A new OTP has been sent to your email.");
-      }
+      () => updateResendOtpButton()
     );
   });
 }
@@ -874,72 +927,89 @@ if (resendOtpBtn) {
 // =========================
 if (loginBtn) {
   loginBtn.addEventListener("click", () => {
-    const email = loginEmail?.value.trim();
-    const password = loginPassword?.value.trim();
+    withButtonCooldown(loginBtn, () => {
+      const email = loginEmail?.value.trim();
+      const password = loginPassword?.value.trim();
 
-    if (!email || !password) {
-      showMessage("Please enter your email and password.");
-      return;
-    }
-
-    setLoading(true);
-    showMessage("");
-
-    chrome.runtime.sendMessage(
-      {
-        type: "LOGIN",
-        payload: {
-          email,
-          password,
-        },
-      },
-      (response) => {
-        setLoading(false);
-
-        if (chrome.runtime.lastError) {
-          showMessage("Failed to communicate with extension background script.");
-          return;
-        }
-
-        if (handleApiError(response, "Login failed.")) {
-          const notVerified = String(response?.message || "")
-            .toLowerCase()
-            .includes("not verified");
-          if (notVerified && email) {
-            setPendingVerificationEmail(email);
-            clearOtpInputs();
-            showView(otpView);
-          }
-          return;
-        }
-
-        showMessage("Login successful.");
-        showView(generatorView);
+      if (!email || !password) {
+        showMessage("Please enter your email and password.");
+        return;
       }
-    );
+
+      setLoading(true);
+      showMessage("");
+
+      return new Promise((resolve) => {
+        chrome.runtime.sendMessage(
+          {
+            type: "LOGIN",
+            payload: {
+              email,
+              password,
+            },
+          },
+          (response) => {
+            setLoading(false);
+
+            if (chrome.runtime.lastError) {
+              showMessage("Failed to communicate with extension background script.");
+              resolve();
+              return;
+            }
+
+            if (handleApiError(response, "Login failed.")) {
+              const notVerified = String(response?.message || "")
+                .toLowerCase()
+                .includes("not verified");
+              if (notVerified && email) {
+                setPendingVerificationEmail(email);
+                clearOtpInputs(signupOtpInputs);
+                showView(otpView);
+              }
+              resolve();
+              return;
+            }
+
+            showMessage("Login successful.");
+            showView(generatorView);
+            resolve();
+          }
+        );
+      });
+    });
   });
 }
 
 document.querySelectorAll(".js-google-auth").forEach((btn) => {
   btn.addEventListener("click", () => {
-    setLoading(true, "Signing in with Google...");
-    showMessage("");
+    withButtonCooldown(btn, () => {
+      setLoading(true, "Signing in with Google...", { disableAuth: false, disableGoogle: false });
+      showMessage("");
 
-    chrome.runtime.sendMessage({ type: "GOOGLE_AUTH" }, (response) => {
-      setLoading(false, "Generating post...");
+      return new Promise((resolve) => {
+        chrome.runtime.sendMessage({ type: "GOOGLE_AUTH" }, (response) => {
+          setLoading(false, "Generating post...", {
+            disableAuth: false,
+            disableGoogle: false,
+          });
 
-      if (chrome.runtime.lastError) {
-        showMessage("Failed to communicate with extension background script.");
-        return;
-      }
+          if (chrome.runtime.lastError) {
+            showMessage("Failed to communicate with extension background script.");
+            resolve();
+            return;
+          }
 
-      if (handleApiError(response, "Google sign-in failed.")) {
-        return;
-      }
+          if (handleApiError(response, "Google sign-in failed.")) {
+            resolve();
+            return;
+          }
 
-      showMessage(response?.message || "Signed in with Google.");
-      showView(generatorView);
-      loadFromLocal();
+          showMessage(response?.message || "Signed in with Google.");
+          showView(generatorView);
+          loadFromLocal();
+          resolve(response);
+        });
+      });
     });
   });
 });
@@ -995,104 +1065,120 @@ if (logoutBtn) {
 // =========================
 if (sendResetCodeBtn) {
   sendResetCodeBtn.addEventListener("click", () => {
-    const email = forgotPasswordEmail?.value.trim();
+    withButtonCooldown(sendResetCodeBtn, () => {
+      const email = forgotPasswordEmail?.value.trim();
 
-    if (!email) {
-      showMessage("Please enter your email.");
-      return;
-    }
-
-    setLoading(true, "Sending reset code...");
-    showMessage("");
-
-    chrome.runtime.sendMessage(
-      {
-        type: "SEND_RESET_CODE",
-        payload: {
-          email,
-        },
-      },
-      (response) => {
-        setLoading(false, "Generating post...");
-
-        if (chrome.runtime.lastError) {
-          showMessage("Failed to communicate with extension background script.");
-          return;
-        }
-
-        if (handleApiError(response, "Failed to send reset code.")) {
-          return;
-        }
-
-        if (resetPasswordEmail) {
-          resetPasswordEmail.value = email;
-        }
-
-        showMessage(response?.message || "Reset code sent. Check your email.");
-        showView(resetPasswordView);
+      if (!email) {
+        showMessage("Please enter your email.");
+        return;
       }
-    );
+
+      setLoading(true, "Sending reset code...");
+      showMessage("");
+
+      return new Promise((resolve) => {
+        chrome.runtime.sendMessage(
+          {
+            type: "SEND_RESET_CODE",
+            payload: {
+              email,
+            },
+          },
+          (response) => {
+            setLoading(false, "Generating post...");
+
+            if (chrome.runtime.lastError) {
+              showMessage("Failed to communicate with extension background script.");
+              resolve();
+              return;
+            }
+
+            if (handleApiError(response, "Failed to send reset code.")) {
+              resolve();
+              return;
+            }
+
+            showMessage(response?.message || "Reset code sent. Check your email.");
+            setEmailHint(resetPasswordOtpEmailHint, forgotPasswordEmail);
+            showView(resetPasswordView);
+            resolve();
+          }
+        );
+      });
+    });
   });
 }
 
 if (resetPasswordBtn) {
   resetPasswordBtn.addEventListener("click", () => {
-    const email = resetPasswordEmail?.value.trim();
-    const code = resetPasswordCode?.value.trim();
-    const password = newPassword?.value.trim();
-    const confirmPassword = confirmNewPassword?.value.trim();
+    withButtonCooldown(resetPasswordBtn, () => {
+      const email = forgotPasswordEmail?.value.trim();
+      const code = getOtpInputs(resetPasswordOtpInputs);
+      const password = newPassword?.value.trim();
+      const confirmPassword = confirmNewPassword?.value.trim();
 
-    if (!email || !code || !password || !confirmPassword) {
-      showMessage("Please fill in all reset password fields.");
-      return;
-    }
-
-    if (password !== confirmPassword) {
-      showMessage("Passwords do not match.");
-      return;
-    }
-
-    setLoading(true, "Resetting password...");
-    showMessage("");
-
-    chrome.runtime.sendMessage(
-      {
-        type: "RESET_PASSWORD",
-        payload: {
-          email,
-          reset_code: code,
-          new_password: password,
-        },
-      },
-      (response) => {
-        setLoading(false, "Generating post...");
-
-        if (chrome.runtime.lastError) {
-          showMessage("Failed to communicate with extension background script.");
-          return;
-        }
-
-        if (handleApiError(response, "Failed to reset password.")) {
-          return;
-        }
-
-        if (forgotPasswordEmail) {
-          forgotPasswordEmail.value = email;
-        }
-
-        if (loginEmail) {
-          loginEmail.value = email;
-        }
-
-        if (resetPasswordCode) resetPasswordCode.value = "";
-        if (newPassword) newPassword.value = "";
-        if (confirmNewPassword) confirmNewPassword.value = "";
-        if (loginPassword) loginPassword.value = "";
-
-        showMessage(response?.message || "Password reset successful. Please log in.");
-        showView(loginView);
+      if (!email || !code || !password || !confirmPassword) {
+        showMessage("Please fill in all reset password fields.");
+        return;
       }
-    );
+
+      if (!/^\d{6}$/.test(code)) {
+        showMessage("Please enter the 6-digit reset code.");
+        return;
+      }
+
+      if (password !== confirmPassword) {
+        showMessage("Passwords do not match.");
+        return;
+      }
+
+      setLoading(true, "Resetting password...");
+      showMessage("");
+
+      return new Promise((resolve) => {
+        chrome.runtime.sendMessage(
+          {
+            type: "RESET_PASSWORD",
+            payload: {
+              email,
+              reset_code: code,
+              new_password: password,
+            },
+          },
+          (response) => {
+            setLoading(false, "Generating post...");
+
+            if (chrome.runtime.lastError) {
+              showMessage("Failed to communicate with extension background script.");
+              resolve();
+              return;
+            }
+
+            if (handleApiError(response, "Failed to reset password.")) {
+              resolve();
+              return;
+            }
+
+            if (forgotPasswordEmail) {
+              forgotPasswordEmail.value = email;
+            }
+
+            if (loginEmail) {
+              loginEmail.value = email;
+            }
+
+            clearOtpInputs(resetPasswordOtpInputs);
+            if (newPassword) newPassword.value = "";
+            if (confirmNewPassword) confirmNewPassword.value = "";
+            if (loginPassword) loginPassword.value = "";
+
+            showMessage(response?.message || "Password reset successful. Please log in.");
+            showView(loginView);
+            resolve();
+          }
+        );
+      });
+    });
   });
 }
 
@@ -1415,9 +1501,9 @@ if (clearFormatBtn) {
   });
 }
 
-// =========================
+// ======================================
 // Keyboard shortcuts for text formatting
-// =========================
+// ======================================
 function isFormatShortcutModifier(e) {
   return e.ctrlKey || e.metaKey;
 }
@@ -1455,6 +1541,23 @@ function handleFormatFieldKeydown(e) {
     clearFormatBtn?.click();
     return;
   }
+}
+
+// ==========
+// Side panel
+// ==========
+const pinButton = document.getElementById("pinButton");
+if (pinButton && chrome.sidePanel?.open) {
+  pinButton.addEventListener("click", async () => {
+    try {
+      const currentWindow = await chrome.windows.getCurrent();
+      await chrome.sidePanel.open({ windowId: currentWindow.id });
+      window.close();
+    } catch (e) {
+      console.error("side panel open failed:", e);
+      showMessage("Could not open side panel. Use Chrome 114+.");
+    }
+  });
 }
 
 // =======

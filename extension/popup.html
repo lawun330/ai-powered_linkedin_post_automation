@@ -8,6 +8,26 @@
 </head>
 <body>
   <div class="container">
+    <!-- Pin button for side panel -->
+    <div class="popup-pin-bar" id="popupPinBar" aria-label="Window pin">
+      <span class="popup-pin-spacer"></span>
+      <button
+        type="button"
+        id="pinButton"
+        class="pin-button"
+        aria-pressed="false"
+        title="Open in side panel (stays visible when you click the page)"
+      >
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M12 17v5" />
+          <path d="M9 10.76a2 2 0 0 1-1.11 1.79l-1.78.9A7 7 0 0 0 5 15.5" />
+          <path d="M15 10.76a2 2 0 0 0 1.11 1.79l1.78.9A7 7 0 0 1 19 15.5" />
+          <path d="M12 17h.01" />
+          <circle cx="12" cy="7" r="4" />
+        </svg>
+        <span class="pin-button-label">pin</span>
+      </button>
+    </div>
     <!-- Auth Landing View -->
     <div id="authChoiceView" class="view">
       <div class="brand-block">
@@ -180,18 +200,18 @@
 
       <h2>Verify Email</h2>
 
-      <p class="subtitle" id="otpInstructions">
-        Enter the 6-digit code sent to
-        <strong id="otpEmailHint">your email</strong>.
+      <p class="subtitle" id="signupOtpInstructions">
+        Enter the 6-digit verification code sent to
+        <strong id="signupOtpEmailHint">your email</strong>.
       </p>
 
-      <div id="otpInputs" class="otp-input-row" aria-label="One-time password input">
-        <input type="text" class="otp-digit" name="otpDigit1" inputmode="numeric" maxlength="1" autocomplete="one-time-code" aria-label="OTP digit 1 of 6" aria-describedby="otpInstructions" />
-        <input type="text" class="otp-digit" name="otpDigit2" inputmode="numeric" maxlength="1" aria-label="OTP digit 2 of 6" aria-describedby="otpInstructions" />
-        <input type="text" class="otp-digit" name="otpDigit3" inputmode="numeric" maxlength="1" aria-label="OTP digit 3 of 6" aria-describedby="otpInstructions" />
-        <input type="text" class="otp-digit" name="otpDigit4" inputmode="numeric" maxlength="1" aria-label="OTP digit 4 of 6" aria-describedby="otpInstructions" />
-        <input type="text" class="otp-digit" name="otpDigit5" inputmode="numeric" maxlength="1" aria-label="OTP digit 5 of 6" aria-describedby="otpInstructions" />
-        <input type="text" class="otp-digit" name="otpDigit6" inputmode="numeric" maxlength="1" aria-label="OTP digit 6 of 6" aria-describedby="otpInstructions" />
+      <div id="signupOtpInputs" class="otp-input-row" aria-label="Signup one-time password input">
+        <input type="text" class="otp-digit" name="otpDigit1" inputmode="numeric" maxlength="1" autocomplete="one-time-code" aria-label="OTP digit 1 of 6" aria-describedby="signupOtpInstructions" />
+        <input type="text" class="otp-digit" name="otpDigit2" inputmode="numeric" maxlength="1" aria-label="OTP digit 2 of 6" aria-describedby="signupOtpInstructions" />
+        <input type="text" class="otp-digit" name="otpDigit3" inputmode="numeric" maxlength="1" aria-label="OTP digit 3 of 6" aria-describedby="signupOtpInstructions" />
+        <input type="text" class="otp-digit" name="otpDigit4" inputmode="numeric" maxlength="1" aria-label="OTP digit 4 of 6" aria-describedby="signupOtpInstructions" />
+        <input type="text" class="otp-digit" name="otpDigit5" inputmode="numeric" maxlength="1" aria-label="OTP digit 5 of 6" aria-describedby="signupOtpInstructions" />
+        <input type="text" class="otp-digit" name="otpDigit6" inputmode="numeric" maxlength="1" aria-label="OTP digit 6 of 6" aria-describedby="signupOtpInstructions" />
       </div>
 
       <button id="verifyOtpBtn" type="button" class="auth-cta-btn">Verify OTP</button>
@@ -212,7 +232,7 @@
       <h2>Forgot Password</h2>
 
       <p class="subtitle">
-        Enter the email linked to your account. We’ll send a reset code to your email.
+        Enter the email linked to your account. We'll send a reset code to your email.
       </p>
 
       <label for="forgotPasswordEmail">Email</label>
@@ -241,25 +261,20 @@
 
       <h2>Reset Password</h2>
 
-      <p class="subtitle">
-        Enter the reset code sent to your email and choose a new password.
+      <p class="subtitle" id="resetPasswordOtpInstructions">
+        Enter the 6-digit reset code sent to
+        <strong id="resetPasswordOtpEmailHint">your email</strong> and choose a new password.
       </p>
 
-      <label for="resetPasswordEmail">Email</label>
-      <input
-        type="email"
-        id="resetPasswordEmail"
-        placeholder="Enter your email"
-        autocomplete="email"
-      />
-
-      <label for="resetPasswordCode">Reset Code</label>
-      <input
-        type="text"
-        id="resetPasswordCode"
-        placeholder="Enter the code sent to your email"
-        autocomplete="one-time-code"
-      />
+      <label for="resetPasswordOtpInstructions">Reset Code</label>
+      <div id="resetPasswordOtpInputs" class="otp-input-row" aria-label="Reset password one-time password input">
+        <input type="text" class="otp-digit" name="otpDigit1" inputmode="numeric" maxlength="1" autocomplete="one-time-code" aria-label="OTP digit 1 of 6" aria-describedby="resetPasswordOtpInstructions" />
+        <input type="text" class="otp-digit" name="otpDigit2" inputmode="numeric" maxlength="1" aria-label="OTP digit 2 of 6" aria-describedby="resetPasswordOtpInstructions" />
+        <input type="text" class="otp-digit" name="otpDigit3" inputmode="numeric" maxlength="1" aria-label="OTP digit 3 of 6" aria-describedby="resetPasswordOtpInstructions" />
+        <input type="text" class="otp-digit" name="otpDigit4" inputmode="numeric" maxlength="1" aria-label="OTP digit 4 of 6" aria-describedby="resetPasswordOtpInstructions" />
+        <input type="text" class="otp-digit" name="otpDigit5" inputmode="numeric" maxlength="1" aria-label="OTP digit 5 of 6" aria-describedby="resetPasswordOtpInstructions" />
+        <input type="text" class="otp-digit" name="otpDigit6" inputmode="numeric" maxlength="1" aria-label="OTP digit 6 of 6" aria-describedby="resetPasswordOtpInstructions" />
+      </div>
 
       <label for="newPassword">New Password</label>
       <div class="password-field">

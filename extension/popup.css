@@ -6,6 +6,58 @@ body {
   background: #f7f9fc;
 }
 
+.popup-pin-bar {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  margin: -16px -16px 10px;
+  padding: 8px 12px;
+  background: linear-gradient(180deg, #eef2f7 0%, #e8ecf4 100%);
+  border-bottom: 1px solid #dce3ed;
+}
+
+.popup-pin-spacer {
+  flex: 1;
+}
+
+.pin-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  width: auto;
+  min-height: 0;
+  height: auto;
+  margin: 0;
+  padding: 4px 8px;
+  border: 1px solid #c5ced9;
+  border-radius: 6px;
+  background: #fff;
+  color: #3d4f5f;
+  cursor: pointer;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.06);
+  font: inherit;
+  line-height: 1;
+}
+
+.pin-button-label {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: lowercase;
+}
+
+.pin-button:hover {
+  background: #f8fafc;
+  border-color: #0a66c2;
+  color: #0a66c2;
+}
+
+.pin-button:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(10, 102, 194, 0.25);
+}
+
 .container {
   padding: 16px;
 }
@@ -105,6 +157,12 @@ button.auth-cta-btn:hover {
 button.auth-cta-btn:focus-visible {
   outline: 2px solid #0a66c2;
   outline-offset: 2px;
+}
+
+button.auth-cta-btn:disabled,
+button.auth-cta-btn.cooldown {
+  opacity: 0.65;
+  cursor: not-allowed;
 }
 
 .secondary-btn {
